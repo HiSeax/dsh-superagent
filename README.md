@@ -1,219 +1,168 @@
-# dsh-superagent (release snapshot)
+# dsh-superagent（发布快照）
 
-> **Research prototype for reference only — not an official DeepSeek product.** This
-> code grew out of day-to-day development work, with much of the engineering done by
-> coding agents. Treat it as research code, not production-ready software. Review and
-> adapt it before using it in your own environment. It is derived from the upstream
-> research prototype and is **not** identical to the internal version or to the
-> implementation described in *Exploring Super-agent Design: Towards a More
-> Autonomous Agent System*.
+> **仅为研究原型，供参考——不是 DeepSeek 官方产品。** 这套代码来自日常开发工作，其中相当一部分工程由编码 agent 完成。请把它当作研究代码而非可直接上生产线的软件；在你自己的环境使用前请先评审、改造。它由上游研究原型改造而来，**不等于**内部版本，也**不等于**论文《Exploring Super-agent Design: Towards a More Autonomous Agent System》里描述的实现。
 >
-> 中文文档：**[README.zh-CN.md](README.zh-CN.md)**
+> English: **[README.en.md](README.en.md)**
 
-`dsh-superagent` is a **proactive coding agent for one GitHub repository**, packaged as
-a bundle for [DeepSeek Harness](https://www.deepseek.com/en/harness/) **0.2+**. It listens
-to GitHub and, optionally, Feishu, a local DSH Session, or a personal WeChat account
-through its iLink bot. When someone allowed asks the agent for work, it opens a work item
-(a **ticket**), works on it in its own agent session and directory, and answers in the
-original conversation — for example with a pull request. A web **board** shows what needs
-a person.
+`dsh-superagent` 是一个**面向单个 GitHub 仓库的主动式编码 agent**，以 bundle 形式打包给
+[DeepSeek Harness](https://www.deepseek.com/en/harness/) **0.2+**。它监听 GitHub，并可选监听飞书、本地 DSH 会话，或通过 iLink Bot 连接个人微信。当被授权的人向它派活时，它会开一个工单（**ticket**），在自己的 agent 会话与目录里完成，然后回到原对话答复——例如给出一个 pull request。一个网页**看板**显示哪些事需要人处理。
 
-The working principle: **take as little human attention as possible, and give as much
-value as possible.** It acts only when asked, or when a rule the team wrote allows it, and
-it speaks only when someone must act or can use a result.
+工作原则：**尽可能少占用人的注意力，尽可能多地交付价值。** 只有被要求、或团队写下的规则允许时它才行动；只有必须有人处理、或有人能用上结果时它才说话。
 
 ---
 
-## Screenshots
+## 截图
 
-All screenshots come from an **isolated demo instance** (separate profile, separate port,
-temporary `stateDir`) running **fabricated** data — fictional teammates, fictional tickets,
-no credentials, no real project names.
+所有截图都来自**隔离的演示实例**（独立 profile、独立端口、临时 `stateDir`），运行的是**虚构**数据——虚构队友、虚构工单，无任何真实凭据、真实项目名或用户路径。
 
-| Board overview — team at work and ticket spread | Ticket detail — mandate, assignment, report |
+| 看板总览——谁在干什么、工单分布 | 工单详情——授权范围、任务、回报 |
 | --- | --- |
-| ![Board overview](docs/screenshots/board-overview.png) | ![Ticket detail](docs/screenshots/board-ticket-card.png) |
+| ![看板总览](docs/screenshots/board-overview.png) | ![工单详情](docs/screenshots/board-ticket-card.png) |
 
-| Teammates — who is working on what | Blocked / needs a person |
+| 队友——各自动作 | 需要人处理的事项 |
 | --- | --- |
-| ![Teammates](docs/screenshots/board-teammates.png) | ![Needs a person](docs/screenshots/board-needs-person.png) |
+| ![队友](docs/screenshots/board-teammates.png) | ![需要人处理](docs/screenshots/board-needs-person.png) |
 
-### WeChat channel (real usage, sanitized)
+### 微信通道（真实使用截图，已脱敏）
 
-The board shots above are a demo instance with fabricated data. The next one is a
-**real** WeChat conversation through the iLink bot channel: a person asks for work in
-chat and the agent replies with its plan in the same chat.
+上面的看板图来自演示实例、数据虚构；下面这张是 iLink Bot 通道里的**真实**微信对话：有人在聊天里派活，agent 在同一个聊天里回复它的执行方案。
 
-![WeChat channel — a request in, a plan back](docs/screenshots/weixin-channel-demo.png)
+![微信通道——需求进、方案回](docs/screenshots/weixin-channel-demo.png)
 
-*Real usage screenshot. Cropped to the conversation bubbles only — the phone status bar,
-the app top bar (account / bot name) and the input bar are removed. No credentials,
-paths, phone numbers or personal names are visible.*
+*真实使用截图。已裁剪到对话气泡区域——手机状态栏、应用顶栏（账号 / 机器人名）与底部输入栏均已去掉；画面中不含凭据、路径、手机号或人名。*
 
-## What's in this repository
+## 仓库里有什么
 
 ```
 dsh-superagent-release/
-├── README.md / README.zh-CN.md      bilingual overview (this file)
-├── LICENSE                          MIT, shared by both packages
-├── SETUP.md                         deployment walkthrough (start here)
+├── README.md (中文) / README.en.md (English)      双语总览（本文件）
+├── LICENSE                          MIT，两个子包共用
+├── SETUP.md                         部署指引（从这里开始）
 ├── docs/
-│   ├── concepts.md                  the pipeline: eval → dispatch → ticket → teammate → report
-│   ├── screenshots/                 demo-instance screenshots (fabricated data)
+│   ├── concepts.md                  流水线：评估 → 派单 → 工单 → 队友 → 回报
+│   ├── screenshots/                 演示实例截图（虚构数据）
 ├── examples/
-│   ├── profiles/desktop/cordis.patch.example.yml   sanitized profile mount example
-│   ├── policy.admission.example.md                 admission table, accept modes, rules
-│   └── walkthrough.md                              one message → one ticket → one PR
+│   ├── profiles/desktop/cordis.patch.example.yml   脱敏的 profile 挂载示例
+│   ├── policy.admission.example.md                 准入表、accept 模式、主动规则
+│   └── walkthrough.md                              一条消息 → 一个工单 → 一个 PR
 └── packages/
-    ├── dsh-superagent/              the orchestrator plugin (Sources, Engine, Policy,
-    │                                prompts, executor, channels, docs 000–008, tests)
-    └── dsh-superagent-board/        the read-only board panel (DSH 0.2.x client plugin)
+    ├── dsh-superagent/              编排插件本体（Sources、Engine、Policy、提示词、
+    │                                执行器、通道、docs 000–008、测试）
+    └── dsh-superagent-board/        只读看板面板（DSH 0.2.x 客户端插件）
 ```
 
-The two packages are independent DSH plugins. `dsh-superagent-board` does not fork or
-replace `dsh-better-sidebar`; it registers its own sidebar entry and main panel.
+两个包是相互独立的 DSH 插件。`dsh-superagent-board` **不 fork、也不替换** `dsh-better-sidebar`，它注册自己的侧栏入口与主面板。
 
-## How it works
+## 它是怎么工作的
 
-One message travels through five stages. Each stage is described in depth in
-[`packages/dsh-superagent/docs/`](packages/dsh-superagent/docs/002-authorization.md) and
-[`docs/concepts.md`](docs/concepts.md).
+一条消息经过五个阶段。每个阶段的规范描述见
+[`packages/dsh-superagent/docs/`](packages/dsh-superagent/docs/002-authorization.md) 与
+[`docs/concepts.md`](docs/concepts.md)。
 
-1. **Source → Trigger.** A channel (GitHub, Feishu, local DSH Session, Weixin) records a
-   message as a **Trigger** and whether it addresses the agent (`mention` / `direct`).
-2. **Eval (the gate).** The gate checks the sender and the Source's **Policy**: an allowed
-   person addressing the agent is an **explicit request**; other messages go through the
-   **admission table** (per receiving scope, up to three cells: explicit / inferred /
-   ignore) and the **accept mode**:
-   - `off` — nothing inferred becomes a candidate;
-   - `observe` *(default)* — inferred candidates are assessed, a positive assessment is
-     recorded as *ignore — "would accept"*, nothing is accepted;
-   - `auto` — a positive assessment of an inferred candidate accepts it.
-3. **Dispatch.** The main Session routes explicit candidates with `orchestrator_route`
-   (accept / attach / stop / ignore, several per call). **Accept** creates, atomically, a
-   **Ticket**, its **Mandate** (the matched rule), **Subscriptions** to the thread, the
-   first **Assignment**, and an acknowledgement reply.
-4. **Ticket → Executor → Teammates.** Each Ticket gets its own Executor Session
-   (`worker-<ticketId>`) and its own directory. It can spawn **teammate** sub-sessions for
-   parallel subtasks. Work is reported back as Assignments; a question for a person marks
-   the Ticket `blocked`.
-5. **Report / Reply.** The Executor reports and the channel writes an **acknowledgement**,
-   an **answer**, a **result**, or an **attention** message — each only by the rule that
-   allows it. The board surfaces what needs a person.
+1. **Source → Trigger（触发）。** 通道（GitHub、飞书、本地 DSH 会话、微信）把一条消息记为 **Trigger**，并标注是否指向 agent（`mention` / `direct`）。
+2. **Eval（闸门）。** 闸门检查发送者与该 Source 的 **Policy**：在名单上且指向 agent 的人是**显式请求**；其他消息走**准入表**（按接收范围，最多三格：explicit / inferred / ignore）与 **accept 模式**：
+   - `off`——任何 inferred 都不成为候选；
+   - `observe`（默认）——inferred 候选会被评估，正向评估记为 *ignore — “would accept”*，**不**接受；
+   - `auto`——inferred 候选的正向评估会被接受。
+3. **派单（Dispatch）。** 主会话用 `orchestrator_route` 处置显式候选（accept / attach / stop / ignore，一次可多条）。**accept** 原子地创建：**Ticket**、其 **Mandate**（命中的规则）、对该线程的 **Subscriptions**、首个 **Assignment**，以及一条确认回复。
+4. **工单 → 执行器 → 队友。** 每个工单有自己的执行器会话（`worker-<ticketId>`）与自己的目录；它可以派生**队友**子会话做并行子任务。工作以 Assignment 的形式回报；若遇到只有人能定的事，工单标记 `blocked` 并带一个问题。
+5. **回报 / 回复（Report / Reply）。** 执行器回报后，通道写**确认**、**答复**、**结果**或**需要关注**——每一条都必须有允许它的规则。看板只把需要人的部分顶出来。
 
-## How this differs from the official baseline
+## 与官方基线的区别
 
-There is no "official superagent" product to compare against; the honest baselines are
-(a) **DeepSeek Harness 0.2 base** — the host, which has no proactive orchestration — and
-(b) **the upstream research prototype** this code is derived from
-([`vHao11/dsh-superagent@windows-adapt`](https://github.com/vHao11/dsh-superagent/tree/windows-adapt)),
-which is Unix-only in practice. What this release adds on top of those:
+并不存在一个可以拿来对比的“官方 superagent 产品”；诚实的基线是两个：
+（a）**DeepSeek Harness 0.2 基础版**——宿主本身没有任何主动式编排；
+（b）**本代码所源自的上游研究原型**
+（[`vHao11/dsh-superagent@windows-adapt`](https://github.com/vHao11/dsh-superagent/tree/windows-adapt)），它在实践中是 **Unix-only** 的。本发布在它们之上增加了：
 
-| Area | Baseline (DSH 0.2 host / upstream prototype) | This release |
+| 方面 | 基线（DSH 0.2 宿主 / 上游原型） | 本发布 |
 | --- | --- | --- |
-| Proactive orchestration | None in the host: sessions are started by a person | Source → Eval → Ticket → Executor → Report pipeline with policy-gated accept |
-| Operating system | Upstream prototype is Unix-only in practice (`fcntl`, `tmux`, `#!/bin/sh` shims, `bash` tool, `/…`-only paths) | **Windows adaptation**: drive/UNC paths, `PATHEXT`, `pwsh` shell tool, `windowsHide`, case-insensitive paths, `waitForStateLock()`, tmux/fcntl-free service manager (`scripts/dsh-superagent.mjs`/`.cmd`), `install-windows.ps1` |
-| Service lifecycle on Windows | Upstream service manager targets tmux | PID identity check before `taskkill /T /F` (fail-closed), DSH ≥ 0.2 version gate, explicit-profiles-only installer |
-| Channels | GitHub + Feishu in the upstream prototype | GitHub, Feishu, **local DSH Session**, and **personal WeChat via iLink bot** |
-| Human surface | Terminal / logs | **Board panel** in the DSH sidebar: team cards, grouped tickets, stop / retry / unfocus with inline confirmation |
-| Authorization | Ad-hoc allow-lists | Versioned **Policy**: admission table per receiving scope, accept modes `off`/`observe`/`auto`, proactive rules, Mandate recording the matched rules and Policy version |
-| Assessment tooling | — | **Eval toolchain**: batching, gate strength, assessment per enabled rule, re-queue on Policy change, `candidate` / `decide` commands |
-| Packaging | Research checkout | Monorepo release snapshot: orchestrator + board + sanitized config/policy examples + bilingual docs |
+| 主动式编排 | 宿主没有：会话都由人手动开 | Source → Eval → Ticket → Executor → Report 的流水线，且接受动作受策略闸门约束 |
+| 操作系统 | 上游原型实践上 Unix-only（`fcntl`、`tmux`、`#!/bin/sh` shim、`bash` 工具、只认 `/…` 路径） | **Windows 适配**：盘符/UNC 路径、`PATHEXT`、`pwsh` shell 工具、`windowsHide`、大小写不敏感路径、`waitForStateLock()`、无 tmux/fcntl 的服务管理器（`scripts/dsh-superagent.mjs`/`.cmd`）、`install-windows.ps1` |
+| Windows 上的服务生命周期 | 上游服务管理器面向 tmux | `taskkill /T /F` 前先做 PID 身份校验（fail-closed）、DSH ≥ 0.2 版本闸门、安装器只改显式指定的 profile |
+| 通道 | 上游原型为 GitHub + 飞书 | GitHub、飞书、**本地 DSH 会话**、**个人微信（iLink Bot）** |
+| 人的界面 | 终端 / 日志 | DSH 侧栏里的**看板**：团队卡片、工单分组、stop / retry / unfocus 且带内联确认 |
+| 授权 | 临时 allow-list | 有版本的 **Policy**：按接收范围的准入表、accept 模式 `off`/`observe`/`auto`、主动规则、Mandate 记录命中的规则与 Policy 版本 |
+| 评估工具链 | — | **Eval 工具链**：评估批处理、闸门强度、每条启用规则各判一次、Policy 变更后重排队、`candidate` / `decide` 命令 |
+| 打包 | 研究性 checkout | 单仓发布快照：编排器 + 看板 + 脱敏的配置/策略示例 + 双语文档 |
 
-## Why you might pick this (and the pain it removes)
+## 为什么选用（以及它解决什么痛点）
 
-| Capability | Pain it removes |
+| 能力 | 解决的痛点 |
 | --- | --- |
-| **Windows-friendly** | Upstream prototype practically requires Unix. Here the drive/UNC paths, `PATHEXT`, `pwsh` shell tool and hidden console windows mean it runs on a normal Windows workstation without WSL. Pain removed: "it installs on Windows and then fails at runtime". |
-| **WeChat (iLink bot) channel** | Team chat is where requests actually happen. A personal WeChat account can hand work to the agent and get the result back in the same chat. Pain removed: copy-pasting between chat and terminal. |
-| **Board panel** | Long-running agent work is invisible. The board shows the team, the ticket spread, and what is blocked. Pain removed: "what is the agent doing right now?" |
-| **Ticket / dispatch / report orchestration** | One giant chat loses context and authority. Each ticket has its own session, directory, Mandate and thread subscriptions; reports come back as structured Assignments. Pain removed: "which conversation owned this change?" |
-| **Policy-gated accept (`off` / `observe` / `auto`)** | An agent that can act for a whole team can also waste a whole team's attention. `observe` records *would accept* without acting; `auto` acts only on a matching rule; Mandates record why. Pain removed: "why did it do that?" and "can I let it act without watching?" |
-| **Eval toolchain** | Proactive work needs an auditable decision, not a vibe. Every assessment judges each enabled rule exactly once, decisions are recorded, and a Policy change re-queues affected work. Pain removed: no audit trail for proactive actions. |
+| **Windows 友好** | 上游原型实践上必须 Unix。这里通过盘符/UNC 路径、`PATHEXT`、`pwsh` shell 工具、隐藏控制台窗口，让它在普通 Windows 工作站上直接跑（不需要 WSL）。痛点：装得上、跑不起来。 |
+| **微信通道（iLink Bot）** | 真正的派活发生在聊天里。个人微信可以把活交给 agent，并在同一个聊天里拿到结果。痛点：在聊天与终端之间来回复制粘贴。 |
+| **看板** | 长时间运行的 agent 工作是黑盒。看板显示团队、工单分布、什么被卡住。痛点：它现在到底在干嘛？ |
+| **工单 / 派单 / 回执编排** | 一个巨大的聊天会丢上下文与权限边界。每个工单有自己的会话、目录、Mandate 与线程订阅，回报以结构化 Assignment 回来。痛点：这个改动到底是哪个对话负责的？ |
+| **策略化 accept（`off` / `observe` / `auto`）** | 能为一个团队干活的 agent，也可能浪费整个团队的注意力。`observe` 只记 *would accept* 而不动手；`auto` 只在命中规则时动手；Mandate 记录为什么。痛点：它为什么做这个？我能不能不盯着也放心让它动？ |
+| **Eval 工具链** | 主动式工作需要可审计的决策，而不是凭感觉。每次评估对每条启用规则各判一次，决策被记录，Policy 变更会重新排队受影响的工作。痛点：主动动作没有审计痕迹。 |
 
-## When to use it — and when not to
+## 什么时候该用，什么时候不必
 
-**Good fit**
+**合适**
 
-- One repository, one team, and a channel people already use (GitHub, Feishu, WeChat).
-- You want an agent that opens branches and pull requests, and reports back in the same
-  conversation.
-- You are willing to review `observe`-mode decisions before enabling `auto`.
-- Windows workstation, DSH 0.2+.
+- 一个仓库、一个团队，而且大家已经在用某个通道（GitHub、飞书、微信）。
+- 你想要一个会开分支、开 PR，并在原对话里回报的 agent。
+- 你愿意先看 `observe` 模式的决策记录，再打开 `auto`。
+- Windows 工作站 + DSH 0.2+。
 
-**Not a good fit**
+**不合适**
 
-- You want a polished, supported product — this is a research prototype with rough edges
-  (see the disclaimer and the known limitations in
-  [`packages/dsh-superagent/WINDOWS-ADAPT.md`](packages/dsh-superagent/WINDOWS-ADAPT.md)).
-- You need multi-repo orchestration — the design is one repository per agent.
-- You cannot accept that worker sessions run commands as your OS user, or that on Windows
-  `blockedCommands` is not enforced for workers (use a dedicated OS account and the agent's
-  own GitHub account if that isolation matters).
+- 你想要一个打磨过、有人维护的成品——这是研究原型，有毛边（见免责声明与
+  [`packages/dsh-superagent/WINDOWS-ADAPT.md`](packages/dsh-superagent/WINDOWS-ADAPT.md) 里的已知限制）。
+- 你需要跨多仓库编排——设计上是一个 agent 对一个仓库。
+- 你不能接受 worker 会话以你的 OS 用户身份执行命令；或你在 Windows 上需要 `blockedCommands` 对 worker 生效（它不生效）。若隔离很重要，请用专用 OS 账户与 agent 自己的 GitHub 账户。
 
-## Install
+## 安装
 
-Prerequisites: **DeepSeek Harness 0.2+** (the `dsh` CLI), **Node.js ≥ 18**, **pnpm**.
+前置：**DeepSeek Harness 0.2+**（`dsh` CLI）、**Node.js ≥ 18**、**pnpm**。
 
 ```powershell
-# 1) Build both packages (typecheck + tests + build)
+# 1) 构建两个包（typecheck + 测试 + build）
 pnpm install
 pnpm --filter dsh-superagent check
 pnpm --filter dsh-superagent-board build
 
-# 2) Create a dedicated profile and point the plugin at a state directory
-#    (full walkthrough: SETUP.md, or ask your coding agent to follow SETUP.md)
+# 2) 建一个专用 profile，并把插件指向一个 state 目录
+#    （完整流程见 SETUP.md，或让编码 agent 照着 SETUP.md 陪你装）
 $dsh = "C:\Users\<you>\AppData\Local\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd"
 & $dsh superagent --from-default-profile web
 powershell -ExecutionPolicy Bypass -File packages\dsh-superagent\scripts\install-windows.ps1 -Profile superagent -Dsh $dsh -DryRun
 powershell -ExecutionPolicy Bypass -File packages\dsh-superagent\scripts\install-windows.ps1 -Profile superagent -Dsh $dsh
 
-# 3) Set `stateDir` in <DSH_HOME>\profiles\superagent\cordis.patch.yml
-#    (see examples/profiles/desktop/cordis.patch.example.yml)
+# 3) 在 <DSH_HOME>\profiles\superagent\cordis.patch.yml 里设置 `stateDir`
+#    （示例见 examples/profiles/desktop/cordis.patch.example.yml）
 
-# 4) Start the service and open the panel (the one-time panel URL is printed to
-#    .artifacts\dsh-superagent-superagent-*.log)
-node packages\dsh-superagent\scripts\dsh-superagent.mjs status --profile superagent   # 0 healthy / 1 down / 2 part failed / 3 waiting for setup
+# 4) 启动服务并打开面板（一次性面板 URL 打印在 .artifacts\dsh-superagent-superagent-*.log）
+node packages\dsh-superagent\scripts\dsh-superagent.mjs status --profile superagent   # 0 正常 / 1 挂了 / 2 部分失败 / 3 等待初始化
 node packages\dsh-superagent\scripts\dsh-superagent.mjs start  --profile superagent
 ```
 
-Unix-shaped environments can follow the upstream-style path in
-[`packages/dsh-superagent/SETUP.md`](packages/dsh-superagent/SETUP.md) instead.
+Unix 形态的环境可以改走上游风格路径，见
+[`packages/dsh-superagent/SETUP.md`](packages/dsh-superagent/SETUP.md)。
 
-## Configuration reference
+## 配置参考
 
-| What | Where | Example |
+| 内容 | 位置 | 示例 |
 | --- | --- | --- |
-| Plugin mount, `stateDir`, heartbeat, projects, channels | `<DSH_HOME>\profiles\<profile>\cordis.patch.yml` | [`examples/profiles/desktop/cordis.patch.example.yml`](examples/profiles/desktop/cordis.patch.example.yml) |
-| Admission table, accept mode, proactive rules | the orchestrator Policy (Settings schemas / Source cards) | [`examples/policy.admission.example.md`](examples/policy.admission.example.md) |
-| Executor environment | set per Assignment | `DSH_SUPERAGENT_DIR`, `DSH_SUPERAGENT_NAME`, `DSH_SUPERAGENT_TICKET`, `DSH_SUPERAGENT_BLOCKED_COMMANDS` |
-| Heartbeat (proactive follow-up) | plugin `config.heartbeat` | `enabled`, `intervalMinutes`, `activeFrom`, `activeTo`, `brief` |
+| 插件挂载、`stateDir`、心跳、项目、通道 | `<DSH_HOME>\profiles\<profile>\cordis.patch.yml` | [`examples/profiles/desktop/cordis.patch.example.yml`](examples/profiles/desktop/cordis.patch.example.yml) |
+| 准入表、accept 模式、主动规则 | 编排器 Policy（Settings schemas / Source 卡片） | [`examples/policy.admission.example.md`](examples/policy.admission.example.md) |
+| 执行器环境变量 | 每个 Assignment 设置 | `DSH_SUPERAGENT_DIR`、`DSH_SUPERAGENT_NAME`、`DSH_SUPERAGENT_TICKET`、`DSH_SUPERAGENT_BLOCKED_COMMANDS` |
+| 心跳（主动跟进） | 插件 `config.heartbeat` | `enabled`、`intervalMinutes`、`activeFrom`、`activeTo`、`brief` |
 
-> Windows caveat: `blockedCommands` is **not** enforced for workers on Windows (the worker
-> shim is a `#!/bin/sh` script). Use the agent's own GitHub account and a dedicated OS
-> account if command isolation matters.
+> Windows 注意：`blockedCommands` 在 Windows 上**对 worker 不生效**（worker shim 是 `#!/bin/sh` 脚本）。若命令隔离重要，请用 agent 自己的 GitHub 账户与专用 OS 账户。
 
-## Skills
+## 技能（Skills）
 
-The orchestrator works with **any DSH skill library** — it does not ship or require a
-particular set of skills; point your DSH profile at whichever skills you already use.
+编排器可以搭配**任意 DSH 技能库**使用——它不自带、也不要求某一套特定技能；把你的 DSH profile 指向你已经在用的技能即可。
 
-## Board and MCP tools
+## 看板与 MCP 工具
 
-- **Board** (`packages/dsh-superagent-board`): a read-only-at-a-glance panel that merges the
-  host roster with the orchestrator's `board.json`, renders team cards and grouped tickets,
-  and runs stop / retry / unfocus with inline confirmation. It hides `worker-*` sessions
-  from the sidebar (fail-open, two layers).
-- **Engine commands** (used by the main Session and the panel): `candidate`, `decide`,
-  `attach`, `requestStatus`, `note`, `reply`, `stopTicket`, `retryTicket`, `reevaluate`,
-  `unsubscribe`, `dismiss`, `receive`, `bindThread`, `threadClosed`, `evaluateDue`,
-  `policyChanged`, and the Executor-side `assignmentStarted`, `inputsRead`, `turnEnded`,
-  `deliveryFailed`, `report`, `markUnrelated`, `followForContext`, `handback`,
-  `assignmentInterrupted`.
-- **Related DSH plugins** (not part of this repository): MCP tool providers such as a
-  specification search server or an outputs reader can be mounted alongside it.
+- **看板**（`packages/dsh-superagent-board`）：把宿主名册与编排器的 `board.json` 合并渲染，显示团队卡片与分组工单，并提供 stop / retry / unfocus（内联确认）。它会把 `worker-*` 会话从侧栏隐藏（两层、fail-open）。
+- **Engine 命令**（主会话与看板使用）：`candidate`、`decide`、`attach`、`requestStatus`、`note`、`reply`、`stopTicket`、`retryTicket`、`reevaluate`、`unsubscribe`、`dismiss`、`receive`、`bindThread`、`threadClosed`、`evaluateDue`、`policyChanged`，以及执行器侧的 `assignmentStarted`、`inputsRead`、`turnEnded`、`deliveryFailed`、`report`、`markUnrelated`、`followForContext`、`handback`、`assignmentInterrupted`。
+- **同类 DSH 插件**（不在本仓库内）：例如规范检索、产出文件读取等 MCP 工具提供者，可与它并列挂载。
 
-## Development
+## 开发
 
 ```powershell
 pnpm --filter dsh-superagent check        # typecheck + vitest + build
@@ -222,17 +171,12 @@ pnpm --filter dsh-superagent-board test
 pnpm --filter dsh-superagent-board smoke
 ```
 
-Some upstream tests are environment-bound on Windows (symlinks, `chmod` modes, the
-tmux-based service-script spec) and fail there by construction — see the known limitations
-in [`packages/dsh-superagent/WINDOWS-ADAPT.md`](packages/dsh-superagent/WINDOWS-ADAPT.md).
+部分上游测试在 Windows 上受环境限制（symlink、`chmod`、基于 tmux 的 service-script spec）而按构造失败——见
+[`packages/dsh-superagent/WINDOWS-ADAPT.md`](packages/dsh-superagent/WINDOWS-ADAPT.md) 的已知限制。
 
-## Disclaimer and license
+## 免责与许可
 
-- **Research prototype, reference only.** It may contain bugs; coding style and engineering
-  practices may be inconsistent. It is adapted for publication and is not identical to any
-  internal version.
-- **Not an official DeepSeek product.** DeepSeek Harness itself is a separate product and is
-  **not** included here; this repository only contains the two plugins and their docs.
-- **Fabricated demo data.** All screenshots use fictional teammates, tickets and projects.
-- License: **MIT** for both packages — see [`LICENSE`](LICENSE). Third-party dependencies
-  carry their own licenses (see each package's manifest).
+- **研究原型，仅供参考。** 可能仍有 bug，代码风格与工程实践可能不一致。它为发布做过改造，与任何内部版本都不完全一致。
+- **不是 DeepSeek 官方产品。** DeepSeek Harness 本身是另一个产品，**不**包含在本仓库里；这里只有两个插件与其文档。
+- **截图为虚构数据。** 所有截图使用虚构的队友、工单与项目。
+- 许可：两个包均为 **MIT**——见 [`LICENSE`](LICENSE)。第三方依赖各自带自己的许可（见各包 manifest）。
