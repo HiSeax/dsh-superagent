@@ -127,10 +127,17 @@ dsh-superagent-release/
 The two packages are independent DSH plugins. `dsh-superagent-board` does not fork or
 replace `dsh-better-sidebar`; it registers its own sidebar entry and main panel.
 
-## How it works
+## Architecture: how it works
 
-1. **Source → Trigger.** A channel records a message as a **Trigger** and whether it
-   addresses the agent (`mention` / `direct`).
+![DSH Harness + Superagent full window (demo instance · fabricated data)](docs/screenshots/harness-full.png)
+
+*Left: session/plugin sidebar; centre: a conversation with the dispatcher and its rich-text
+receipt; right: the team board. Demo instance with **fabricated** data (sessions
+`demo-widgets` / `example-service`, teammates Atlas·Nova·Orion·Vega·Helios).*
+
+A message travels through five stages; see
+[`docs/concepts.md`](docs/concepts.md) and
+[`packages/dsh-superagent/docs/`](packages/dsh-superagent/docs/002-authorization.md).
 2. **Eval (the gate).** The gate checks the sender and the Source's **Policy**: a listed
    person addressing the agent is an **explicit request**; other messages go through the
    **admission table** and the **accept mode** (`off` / `observe` *(default)* / `auto`).
@@ -272,6 +279,20 @@ after the last inbound message, with `sendMessage` answering `ret=-2 errcode=0 p
 failed`; once the person wrote again, about ten queued replies went out within 2.5 minutes.
 So keep queued replies short-lived instead of hoarding them; a rejected send is recorded on
 the `weixin-send` health entry rather than dropped silently.
+
+### WeChat-specific adaptations
+
+Implementation-level, one line per item: **the problem** and **where it lives**.
+
+1. **Talk without opening a ticket** — Problem: a throwaway question in chat should get an answer, not a work item. Implementation: the message enters as a Trigger in `src/core/intake.ts` (`'stored' | 'duplicate' | 'filtered'`), Eval produces a candidate, and the main Session answers with `orchestrator_reply` (`src/app/tools/main.ts`) **without accepting a Ticket**; when a record is wanted, `attach` routes it into a ticket thread (subscription) and later replies follow that thread.
+2. **Images both ways** — Problem: send/receive pictures in chat. Implementation: **inbound** goes through `src/sources/weixin-media.ts` (AES-128-ECB decrypt, stored under `<stateDir>/weixin-media/` by content hash) with an `[Image: …]` reference, and the assessing model reads the stored file as an attachment; **outbound** `orchestrator_reply` takes up to **4** `attachments` with a `mime` hint for `image/png`, `image/jpeg`, `image/webp`, `image/gif` (`src/app/tools/main.ts:246-248`), bounded by **Image size limit** (10 MiB default), with prepare / upload / send stages behind `weixin-upload` and `weixin-send`.
+3. **Push window and quota** — Problem: iLink pushes are both time- and quota-limited. Implementation: `src/app/outbox.ts` enqueues each reply and records the receipt atomically (a message id enqueues once), retries with `[5s, 300s]` backoff, queues later messages behind an unresolved earlier one (reporting after `FAILURES_BEFORE_ERROR`), accumulates while the window is shut and **flushes when the person writes again** (measured ~10 replies / 2.5 min); settles as dropped only when the conversation is gone.
+4. **Long messages** — Problem: the protocol caps a single text. Implementation: `chunkText(text, limit=4000)` in `src/sources/weixin-bot.ts` (`TEXT_CHUNK = 4000`, aligned with CowAgent's Weixin channel) splits at paragraph/line boundaries and sends the pieces; `skills/dsh-superagent-weixin/SKILL.md` additionally constrains replies to 3–6 short bullets.
+5. **QR login** — Problem: no app id/secret should be required. Implementation: `src/sources/weixin-qr.ts` renders the login QR as a PNG (+ link text) under `<stateDir>`; `weixin-bot.ts` keeps the login state machine and saves `<stateDir>/weixin-bot.json`; a stale token (`ret/errcode -14`, `isAuthError` in `weixin-api.ts`) moves the old file aside as `*.expired-<time>` and re-logs in under control.
+6. **wxid allowlist** — Problem: only authorised people are answered. Implementation: the Policy's `sources.weixin.allowed` (`allowedSender` / admission in `src/policy.ts`; read and written by `src/app/tools/main.ts`); messages from anyone else are not admitted by default.
+7. **Long poll and health entries** — Problem: there is no webhook, only long polling, so you need to see whether it is alive. Implementation: long poll in `src/sources/weixin-api.ts` (35 s margin over the server hold); `weixin-bot.ts` reports five health entries — `weixin` (login), `weixin-poll`, `weixin-send`, `weixin-upload`, `weixin-media`; measured, a failed poll recovers to ready in about 90 s, and the host keeps its own cursor so nothing is lost.
+8. **Idempotent dedupe** — Problem: re-delivery must not produce duplicate answers. Implementation: `src/core/intake.ts` dedupes by **trigger id** (returns `'duplicate'` when present; only `'stored'` triggers an Eval); `src/app/outbox.ts` dedupes by **message id** (`store.receipts.add` failing means it is not enqueued).
+9. **Chinese / formatting** — Problem: WeChat does not render Markdown; tables, bold and code blocks degrade into symbols. Implementation: replies follow the source language (Chinese in Chinese chats); `skills/dsh-superagent-weixin/SKILL.md` requires short bullets and `1 / 2`-style choices instead of Markdown — a **prompt-level** constraint; there is no Markdown→rich-text converter in the code.
 
 ### Verify the install
 

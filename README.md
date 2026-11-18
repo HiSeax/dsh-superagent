@@ -94,9 +94,14 @@ dsh-superagent-release/
 
 两个包是相互独立的 DSH 插件。`dsh-superagent-board` **不 fork、也不替换** `dsh-better-sidebar`，它注册自己的侧栏入口与主面板。
 
-## 它是怎么工作的
+## 架构：它是怎么工作的（Architecture）
 
-1. **Source → Trigger（触发）。** 通道把一条消息记为 **Trigger**，并标注是否指向 agent（`mention` / `direct`）。
+![DSH Harness + Superagent 全景（演示实例 · 虚构数据）](docs/screenshots/harness-full.png)
+
+*左：会话/插件侧栏；中：与 dispatcher 的对话与富文本回执；右：团队任务板。演示实例 · 虚构数据（会话 `demo-widgets` / `example-service`，队友 Atlas·Nova·Orion·Vega·Helios）。*
+
+一条消息经过五个阶段。每个阶段的规范描述见
+[`packages/dsh-superagent/docs/`](packages/dsh-superagent/docs/002-authorization.md)。
 2. **Eval（闸门）。** 检查发送者与该 Source 的 **Policy**：在名单上且指向 agent 的人是**显式请求**；其他消息走**准入表**与 **accept 模式**（`off` / `observe`（默认）/ `auto`）。
 3. **派单（Dispatch）。** 主会话用 `orchestrator_route` 处置显式候选（accept / attach / stop / ignore）。**accept** 原子地创建：**Ticket**、其 **Mandate**、对该线程的 **Subscriptions**、首个 **Assignment**，以及一条确认回复。
 4. **工单 → 执行器 → 队友。** 每个工单有自己的执行器会话（`worker-<ticketId>`）与目录；可派生**队友**子会话。遇到只有人能定的事，工单标记 `blocked`。
@@ -198,6 +203,20 @@ dsh plugin --profile superagent add "link:$PWD\packages\dsh-superagent-board"
 *登录二维码示意（来自真实绑定界面）。二维码**已过期且已打码**——扫这张图不会有任何效果；实际使用时它是活的、只在你自己的 `<stateDir>` 里、数分钟失效。图中不含账号名、token 或手机号。*
 
 **推送窗口（实测，非文档宣称的 24 小时）**：iLink 只允许 bot 在对方**最后一条消息之后的一段时间内**主动推送。实测该窗口大约在最后入站后约 1 小时关闭，之后 `sendMessage` 返回 `ret=-2 errcode=0 prepare failed`；对方再发一条后，队列里约 10 条回复在 2.5 分钟内发出。因此排队回复应短命、不要囤积；被拒的发送会记在 `weixin-send` 健康项，而不是静默丢弃。
+
+### 微信本地化适配（WeChat-specific adaptations）
+
+这一节只写“具体改了什么、怎么实现”，每条：**解决了什么** + **实现位置**。
+
+1. **不需要工单即可对话** —— 解决：用户在微信里随口一问就该有回应，不必先建工单。实现：消息作为 Trigger 进 `src/core/intake.ts`（返回 `'stored' / 'duplicate' / 'filtered'`）→ Eval 出候选 → 主会话用 `orchestrator_reply`（`src/app/tools/main.ts`）直接回复，**不经 accept 建工单**；需要建档时再用 `attach` 把消息挂到工单线程（订阅），后续回复走该线程。
+2. **图片双向** —— 解决：微信里发图/收图要能用。实现：**收** 入站图片走 `src/sources/weixin-media.ts`（AES-128-ECB 解密、按内容哈希落 `<stateDir>/weixin-media/`），消息带 `[Image: …]` 引用，评估模型把落盘图当附件直接读；**发** `orchestrator_reply` 的 `attachments` 最多 **4 张**，`mime` 支持 `image/png`、`image/jpeg`、`image/webp`、`image/gif`（`src/app/tools/main.ts:246-248`），单图受 **Image size limit**（默认 10 MiB）约束，上传分 prepare/upload/send 三段并分别记 `weixin-upload`、`weixin-send`。
+3. **推送窗口与额度管理** —— 解决：iLink 主动推送有时限和额度，发出去不等于发到了。实现：`src/app/outbox.ts` 入队并原子记账（同一条消息 id 只入队一次），失败按 `[5s, 300s]` 退避重试；同一工单/会话的前一条未发完时后续排队（超过 `FAILURES_BEFORE_ERROR` 才显式报错）；窗口关闭时积压，**用户再发一句后自动补发**（实测约 10 条/2.5 分钟）；目标会话已不存在时 settle 为 dropped。
+4. **长消息处理** —— 解决：微信单条文本有上限，长回复会被截断。实现：`src/sources/weixin-bot.ts` 的 `chunkText(text, limit=4000)`（`TEXT_CHUNK = 4000`，对齐 CowAgent 的 Weixin 通道），优先在段落/换行处切分后**分条发送**；同时在 `skills/dsh-superagent-weixin/SKILL.md` 约束回复形态（3–6 条短分点）。
+5. **扫码登录** —— 解决：不想为通道再申请 app id/secret。实现：`src/sources/weixin-qr.ts` 把登录二维码渲染成 PNG（+ link 文本）写到 `<stateDir>`；`weixin-bot.ts` 的登录状态机把登录态存 `<stateDir>/weixin-bot.json`；token 过期（`ret/errcode -14`，`weixin-api.ts` 的 `isAuthError`）时旧文件挪成 `*.expired-<时间>` 并受控重新登录。
+6. **wxid 白名单** —— 解决：只响应被授权的人。实现：Policy 的 `sources.weixin.allowed`（`src/policy.ts` 的 `allowedSender`/准入判断；`src/app/tools/main.ts` 里读写该名单）；不在名单的来消息默认不接纳。
+7. **长轮询与健康项** —— 解决：微信没有 webhook 只能长轮询，且要能看出“通没通”。实现：`src/sources/weixin-api.ts` 长轮询（超时留 35s 余量）；`weixin-bot.ts` 上报五个健康项 `weixin`（登录）/`weixin-poll`/`weixin-send`/`weixin-upload`/`weixin-media`；实测一次 failed poll 约 90 秒后自愈为 ready，宿主保留自己的游标不丢消息。
+8. **幂等去重** —— 解决：平台重投或重复送达时不能重复应答。实现：`src/core/intake.ts` 以 **trigger id** 判重（已存在即返回 `'duplicate'`，只有 `'stored'` 才触发评估）；`src/app/outbox.ts` 对**消息 id** 去重（`store.receipts.add` 失败则不入队）。
+9. **中文/格式适配** —— 解决：微信不渲染 Markdown，表格/加粗/代码块都会退化成符号。实现：回复语言按来源（中文场景用中文）；`skills/dsh-superagent-weixin/SKILL.md` 明确要求不用 Markdown/表格/加粗/代码块，改用短分点与「回 1 / 回 2」选项——这是**提示词层**约束（代码中没有 Markdown→富文本转换器）。
 
 ### 验证安装成功
 
