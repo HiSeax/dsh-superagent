@@ -277,7 +277,7 @@ async function main() {
     const teamText = await evaluate(cdp, "document.querySelector('#team').innerText")
     check((await evaluate(cdp, "document.querySelectorAll('#team .card').length")) === 4, 'roster renders the lead and three teammates')
     check(teamText.includes('Atlas') && teamText.includes('Nova') && teamText.includes('Orion'), 'member cards show the /team display names')
-    check(teamText.includes('board, sidebar and client plugin owner'), 'member card shows the /team role')
+    check(teamText.includes('board widgets, sidebar and client plugin'), 'member card shows the /team role')
     check(teamText.includes('Fix timezone handling in export button'), 'the active ticket fills 当前工单')
     check(teamText.includes('运行中') && teamText.includes('空闲') && teamText.includes('未启动'), 'running / idle / stored read from the roster')
     check(!teamText.includes('lodestar-owner') && !teamText.includes('local-source-dev'), 'old DSH agentTeam members are gone')
