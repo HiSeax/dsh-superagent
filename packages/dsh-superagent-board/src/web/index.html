@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Superagent</title>
+  <link rel="stylesheet" href="tokens.css?v=20261112c">
+</head>
+<body>
+  <main>
+    <header class="board-summary">
+      <div class="board-summary-title">
+        <h2>团队任务板</h2>
+        <span class="summary" id="summary">团队 0 成员 · 0 工单</span>
+      </div>
+      <div class="board-actions">
+        <span id="updated">更新于 --:--:--</span>
+        <button id="refresh" type="button">刷新</button>
+      </div>
+    </header>
+    <div id="banner" class="banner" hidden></div>
+    <section>
+      <h2>团队</h2>
+      <div id="team" class="team-grid">
+        <div class="skeleton-card"><div class="skeleton skeleton-avatar"></div><div class="skeleton skeleton-line w-40"></div><div class="skeleton skeleton-line w-70"></div></div>
+        <div class="skeleton-card"><div class="skeleton skeleton-avatar"></div><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-line w-40"></div></div>
+        <div class="skeleton-card"><div class="skeleton skeleton-avatar"></div><div class="skeleton skeleton-line w-50"></div><div class="skeleton skeleton-line w-40"></div></div>
+      </div>
+    </section>
+      <aside id="detail" class="detail" hidden></aside>
+    <section>
+      <h2>工单</h2>
+      <div id="tickets" class="ticket-groups">
+        <div class="skeleton-column"><div class="skeleton skeleton-line w-50"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
+        <div class="skeleton-column"><div class="skeleton skeleton-line w-40"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
+        <div class="skeleton-column"><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-row"></div></div>
+      </div>
+    </section>
+    <section>
+      <h2>后台任务</h2>
+      <div id="jobs" class="empty">暂未接入 DSH 后台任务数据</div>
+    </section>
+  </main>
+  <div id="context-menu" class="context-menu" role="menu" hidden></div>
+  <div id="rename-dialog" class="dialog-layer" hidden>
+    <form id="rename-form" class="dialog" role="dialog" aria-modal="true" aria-labelledby="rename-title">
+      <h3 id="rename-title">重命名 / 编辑成员</h3>
+      <p class="dialog-sub" id="rename-target"></p>
+      <label for="rename-name">显示名</label>
+      <input id="rename-name" name="name" maxlength="40" required autocomplete="off">
+      <label for="rename-role">角色</label>
+      <input id="rename-role" name="role" maxlength="200" autocomplete="off">
+      <label for="rename-brief">备注 brief <span class="dialog-hint">留空保留原备注</span></label>
+      <textarea id="rename-brief" name="brief" maxlength="4000" rows="2"></textarea>
+      <p id="rename-error" class="dialog-error" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" data-dialog-close="rename">取消</button>
+        <button type="submit" id="rename-save" class="primary">保存</button>
+      </div>
+    </form>
+  </div>
+  <div id="delete-dialog" class="dialog-layer" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+      <h3 id="delete-title">删除成员</h3>
+      <p class="dialog-sub" id="delete-target"></p>
+      <p class="dialog-warning">删除会归档该成员的 DSH 会话并停止它正在做的工作，superagent 名册中立即移除；此操作不可撤销。</p>
+      <p id="delete-error" class="dialog-error" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" data-dialog-close="delete">取消</button>
+        <button type="button" id="delete-confirm" class="danger">确认删除</button>
+      </div>
+    </div>
+  </div>
+  <div id="toast" class="toast" hidden></div>
+  <script type="module" src="app.js?v=20261112c"></script>
+</body>
+</html>

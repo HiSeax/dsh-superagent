@@ -1,0 +1,176 @@
+/** Weixin (iLink Bot) Source kind and Cordis plugin entry: the official bot for a personal WeChat account. */
+import type { Context } from '@deepseek-ai/cordis'
+import { setTimeout as delay } from 'node:timers/promises'
+import { z } from 'zod'
+import { sourceContext, type Health, type SourceHost } from './host.ts'
+import type { ChannelLink, ChannelLinks, SourceKind } from './kind.ts'
+import { consumerRetry } from './poll.ts'
+import { WEIXIN_HEALTH, WEIXIN_POLL, WeixinBot } from './weixin-bot.ts'
+import { WeixinConfigSchema, type WeixinConfig } from './weixin-config.ts'
+import { weixinThreadContext } from './weixin-read.ts'
+import { DIRECT_ROW, SOURCE } from './weixin-trigger.ts'
+
+/** The Source's Policy part: the wxids that may originate work, empty until a person is added. */
+const WeixinPolicySchema = z.object({
+  allowed: z.array(z.object({ id: z.string().trim().min(1).max(200), name: z.string().trim().max(100).optional() }).strict()).default([]),
+}).strict()
+/** A Weixin direct chat has no page outside the host, so its link carries only the label. */
+export const weixinLink = (_address: Record<string, string>, _links: ChannelLinks): ChannelLink =>
+  ({ url: '', label: { zh: '微信', en: 'WeChat' } })
+
+/**
+ * Builds the Weixin kind for `bot`. The bot is the Source's runtime: it performs the first scan login, long-polls
+ * `getUpdates`, and sends replies through `sendMessage`; the kind only declares its configuration, scope, channel and
+ * policy. No network call happens while the panel reads the kind.
+ */
+export function weixinKind(bot: WeixinBot): SourceKind<WeixinConfig> {
+  const kind: SourceKind<WeixinConfig> = {
+    kind: SOURCE,
+    title: { zh: '微信（iLink Bot）', en: 'WeChat (iLink Bot)' },
+    description: { zh: '接入个人微信的官方 iLink Bot：首次启用需用手机扫码登录，之后在这个微信私聊里发的消息成为触发，编排器的确认、结果和问题也回到该私聊。',
+      en: 'Connects the official iLink Bot of a personal WeChat account: the first enable scans a QR code, then messages in that WeChat direct chat become Triggers, and the orchestrator\'s acknowledgements, results and questions return there.' },
+    schema: WeixinConfigSchema,
+    fields: [
+      { key: 'credentials', type: 'text', label: { zh: '登录凭据文件', en: 'Login credentials file' },
+        hint: { zh: '扫码登录成功后保存 bot token 的文件，相对状态目录或绝对路径；待扫码的二维码 PNG 和链接文本也写在它旁边。换一个文件即重新登录。',
+          en: 'File that keeps the bot token after a successful scan, relative to the state directory or absolute; the pending QR PNG and its link text are written beside it. Point it at another file to log in again.' } },
+      { key: 'qrTimeoutMinutes', type: 'number', advanced: true, min: 1, max: 60, label: { zh: '扫码等待时限 / 分钟', en: 'QR scan time limit / minutes' },
+        hint: { zh: '一次登录最多等待扫码的时间；二维码过期会自动换一张，最多刷新 3 次。', en: 'How long one login waits for the scan; an expired code is replaced automatically, at most three times.' } },
+      { key: 'longPollTimeoutMs', type: 'number', advanced: true, min: 5000, max: 120000, label: { zh: '长轮询时限 / 毫秒', en: 'Long-poll time limit / ms' },
+        hint: { zh: 'getUpdates 的客户端超时；服务端每次大约保持 35 秒，超时只表示暂时没有消息。', en: 'Client timeout of getUpdates; the server holds each request about 35 seconds, and a timeout only means no message yet.' } },
+      { key: 'requestTimeoutMs', type: 'number', advanced: true, min: 1000, max: 120000, label: { zh: '请求时限 / 毫秒', en: 'Request time limit / ms' },
+        hint: { zh: '登录、发消息等普通请求的时限。', en: 'Time limit of ordinary requests such as the login and a send.' } },
+      { key: 'baseUrl', type: 'text', advanced: true, label: { zh: 'iLink 入口', en: 'iLink entry' },
+        hint: { zh: '默认 https://ilinkai.weixin.qq.com；扫码后服务端返回的节点会优先使用，一般不用改。', en: 'Defaults to https://ilinkai.weixin.qq.com; the node a confirmed scan returns takes precedence, so this rarely changes.' } },
+      { key: 'mediaDir', type: 'text', advanced: true, label: { zh: '收到的图片目录', en: 'Received images directory' },
+        hint: { zh: '对方发来的图片下载并解密后存在这里，相对状态目录或绝对路径；文件名是内容哈希，同一张图只存一份。清理由你负责，见 weixin-media 健康项。',
+          en: 'Images the other side sends are downloaded, decrypted and kept here, relative to the state directory or absolute; a file is named by its content hash, so the same picture is stored once. Cleanup is yours; the weixin-media health entry reports it.' } },
+      { key: 'maxMediaBytes', type: 'number', advanced: true, min: 65536, max: 104857600, label: { zh: '图片大小上限 / 字节', en: 'Image size limit / bytes' },
+        hint: { zh: '收图和发图共用：超过这个字节数的图片被拒绝，不会被截断。默认 10485760（10 MiB）。',
+          en: 'Shared by receiving and sending: a larger image is refused, never truncated. Default 10485760 (10 MiB).' } },
+      { key: 'mediaRetentionDays', type: 'number', advanced: true, min: 1, max: 365, label: { zh: '图片保留天数（只统计）', en: 'Image retention days (report only)' },
+        hint: { zh: '超过这个天数的已存图片只在 weixin-media 健康项里计数提醒，本来源不会删除任何文件。',
+          en: 'Stored images older than this only get counted on the weixin-media health entry; this Source deletes nothing.' } },
+      { key: 'cdnBaseUrl', type: 'text', advanced: true, label: { zh: '微信 CDN 入口', en: 'WeChat CDN base' },
+        hint: { zh: '默认 https://novac2c.cdn.weixin.qq.com/c2c；只有镜像 iLink 的部署才需要改，上传下载图片都走它。',
+          en: 'Defaults to https://novac2c.cdn.weixin.qq.com/c2c; only a deployment mirroring iLink changes it. Uploads and downloads of images use it.' } },
+      { key: 'window', type: 'fact', label: { zh: '主动推送限制', en: 'Push limit' } },
+    ],
+    health: WEIXIN_HEALTH,
+    facts: () => ({ window: { zh: 'iLink 只允许在对方最后一条消息后 24 小时内主动推送；超时后必须等对方再发一条。',
+      en: 'iLink allows a push only within 24 hours of the person\'s last message; after that they must send the bot another message.' } }),
+    scope({ meta }, _config) {
+      // iLink conversations are direct chats with the bot; a group message (which the bot should not receive) is not
+      // listened to, because the protocol's send path has no group branch.
+      return meta.direct === true ? { listened: true, observed: false, row: DIRECT_ROW }
+        : { listened: false, reason: 'group_not_supported' }
+    },
+    channel: {
+      // A direct chat stays addressable while the bot is logged in; a send after the 24-hour window reports its failure.
+      allowed: () => true,
+      send: (_context, message) => bot.send(message),
+      link: weixinLink,
+    },
+    threadContext: weixinThreadContext,
+    policy: {
+      unnamed: { person: { zh: '微信用户', en: 'WeChat user' }, bot: { zh: '微信机器人', en: 'WeChat bot' } },
+      schema: WeixinPolicySchema,
+      fields: [
+        { key: 'allowed', type: 'rows', label: { zh: '能发起工作的微信用户', en: 'WeChat users who may originate work' },
+          hint: { zh: '填对方的 wxid（触发记录里能看到）。只有名单内的人发私聊消息才成为明确请求；不填时按准入表处理，默认忽略。',
+            en: 'List the other side\'s wxid, which the Trigger shows. Only a listed person\'s direct message is an explicit request; otherwise the admission table applies, which ignores by default.' },
+          columns: [{ key: 'id', type: 'text', label: { zh: 'wxid', en: 'wxid' } },
+            { key: 'name', type: 'text', label: { zh: '名字', en: 'Name' }, optional: true }] },
+      ],
+      explicit: { zh: 'iLink 只有与机器人的私聊：名单内的人发的消息总是明确的请求，没有 @ 与群聊之分。',
+        en: 'iLink only carries direct chats with the bot: a listed person\'s message is always an explicit request, with no mention or group distinction.' },
+      rows: () => [{ id: DIRECT_ROW, label: { zh: '私聊', en: 'Direct messages' }, note: { zh: '接收', en: 'Received' },
+        cells: { listedUnaddressed: false, unlistedAddressed: true, unlistedUnaddressed: false } }],
+    },
+  }
+  return kind
+}
+
+export const name = 'dsh-superagent-weixin'
+export const inject = ['orchestrator']
+/** What a supervised Weixin lifecycle needs besides the loop: whether a restart can work unattended, and where its state goes. */
+export interface WeixinSupervisor {
+  /** One Source lifecycle; it returns when the Source stops for any reason, including a long poll that ended on its own. */
+  run(signal: AbortSignal): Promise<void>
+  /**
+   * True when a login is saved, so a restart connects again. False means the run ended waiting for a person to scan the QR
+   * code: restarting there would only issue codes nobody scans, which `run()` deliberately avoids.
+   */
+  loggedIn(): boolean
+  /** Reports the poll loop's state, so a restart shows on the Source card instead of staying invisible. */
+  report(health: Health): void
+  /** One line per unexpected end and restart, so a person can tell why the Source restarted. */
+  warn(line: string): void
+  /** Waits `ms`, returning early when `signal` aborts; a test supplies a stub so a restart need not wait. */
+  wait?(ms: number, signal: AbortSignal): Promise<void>
+}
+/**
+ * Runs one Weixin Source lifecycle, then starts it again whenever it ends without the caller aborting. `run()` ends the
+ * whole Source when its long poll returns without a stale token (`if (outcome !== 'auth') return`), and nothing outside
+ * this supervisor would start it again: on 2026-11-11 the WeChat channel stayed silent for hours behind a stale `ready`
+ * health entry. The restart is the Feishu consumer's rule (`consumerRetry`) and names itself on the poll health entry and
+ * in the log; a run that ended waiting for a scan is left to the person who has to scan.
+ *
+ * Every report carries `at`, because the host watchdog reads that timestamp to decide whether the in-process loop is
+ * stale; and a loop that ends three times in a row almost as soon as it starts reports `error` instead of `starting`,
+ * because otherwise each restart would refresh the timestamp and a flapping loop would read as healthy.
+ */
+export async function superviseWeixin(source: WeixinSupervisor, signal: AbortSignal): Promise<void> {
+  const wait = source.wait ?? ((ms: number, abort: AbortSignal) => delay(ms, undefined, { signal: abort }).then(() => {}, () => {}))
+  const at = (): string => new Date().toISOString()
+  let retry: number | undefined
+  // A run that lasted a minute is a working Source; only consecutive runs that end at once are a loop that cannot stay up.
+  let shortEnds = 0
+  while (!signal.aborted) {
+    const began = Date.now()
+    try { await source.run(signal) } catch (error: unknown) {
+      if (signal.aborted) return
+      source.report({ state: 'error', at: at(), detail: `The Weixin Source stopped: ${String(error)}` })
+      source.warn(`loop failed: ${String(error)}`)
+    }
+    if (signal.aborted) return
+    if (!source.loggedIn()) {
+      source.warn('loop ended without a saved login; waiting for a new scan')
+      return
+    }
+    const ranMs = Date.now() - began
+    shortEnds = ranMs >= 60_000 ? 0 : shortEnds + 1
+    retry = consumerRetry(retry, ranMs)
+    source.report(shortEnds >= 3
+      ? { state: 'error', at: at(), detail: `The poll loop keeps ending: ${shortEnds} restarts, last after ${ranMs} ms` }
+      : { state: 'starting', at: at(), detail: `The poll loop ended; restarting in ${retry} ms` })
+    source.warn(`loop ended after ${ranMs} ms; restarting in ${retry} ms`)
+    await wait(retry, signal)
+  }
+}
+/**
+ * Registers the Weixin kind, then attaches the bot and runs its login/poll lifecycle under {@link superviseWeixin}.
+ * Registration comes first so the management panel shows the Source card before any scan; nothing performs a network
+ * call until the plugin is enabled, and a failing loop is kept on the Source's health entry instead of escaping into the
+ * host.
+ */
+export function apply(ctx: Context): void {
+  const host = ctx.orchestrator
+  // Media failures are warnings, not Source-health failures of their own: the Trigger text and the media health entry
+  // already say what happened, and the logger keeps the message id and the CDN origin for a person debugging a picture.
+  const bot = new WeixinBot({ log: line => ctx.logger.warn('dsh-superagent weixin: %s', line) })
+  const kind = weixinKind(bot)
+  ctx.effect(() => host.sources.register(kind), 'weixin: source kind')
+  ctx.effect(() => {
+    const context = sourceContext(host, kind)
+    bot.attach(context)
+    const controller = new AbortController()
+    const running = superviseWeixin({
+      run: signal => bot.run(signal),
+      loggedIn: () => bot.readCredentials() !== undefined,
+      report: health => { try { context.report(WEIXIN_POLL, health) } catch { /* the kind unregistered first */ } },
+      warn: line => ctx.logger.warn('dsh-superagent weixin: %s', line),
+    }, controller.signal)
+    return async () => { bot.detach(); controller.abort(); await running }
+  }, 'weixin: bot')
+}

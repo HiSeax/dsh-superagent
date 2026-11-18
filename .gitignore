@@ -1,0 +1,28 @@
+# Node / package managers
+node_modules/
+**/node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Packaged tarballs
+*.tgz
+
+# Lockfiles are intentionally not shipped in this release snapshot
+pnpm-lock.yaml
+package-lock.json
+
+# Logs & local run artifacts
+*.log
+.artifacts/
+
+# Local audit scratch (secret scans, sanitize evidence) — not published
+.audit/
+
+# OS / editor
+.DS_Store
+Thumbs.db

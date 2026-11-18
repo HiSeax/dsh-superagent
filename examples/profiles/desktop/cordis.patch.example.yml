@@ -1,0 +1,46 @@
+# Example: mounting dsh-superagent + board in a DSH 0.2+ profile
+#
+# This is a SANITIZED example. Replace every <your-home> placeholder and the
+# <YOUR-STATE-DIR> placeholder with your own values. Do not commit real tokens,
+# real teammate names, or real project briefs.
+#
+# Location on disk: <DSH_HOME>\profiles\<profile>\cordis.patch.yml
+# The bundle's own patch (packages/dsh-superagent/cordis.patch.yml) registers the
+# plugin; the lines below are what a profile typically adds on top of it.
+
+# 1) The orchestrator plugin itself.
+#    `stateDir` holds the database, locks and per-ticket worktrees. One directory
+#    can only be served by one DSH host at a time.
+- id: dsh-superagent
+  config:
+    stateDir: <YOUR-STATE-DIR>
+    heartbeat:
+      enabled: true
+      intervalMinutes: 15
+      activeFrom: "09:00"
+      activeTo: "21:00"
+      # The brief is the standing instruction the proactive heartbeat follows.
+      # Keep it generic and non-personal; never put secrets or customer data here.
+      brief: |
+        1. Review open tickets and report anything blocked.
+        2. Only act on tickets a written team rule allows.
+        3. Ask before any irreversible operation (deploy, delete data, push to a
+           remote, switch model).
+      projects:
+        - name: <EXAMPLE-PROJECT-A>
+          mode: advance
+        - name: <EXAMPLE-PROJECT-B>
+          mode: review
+
+# 2) Channels (Sources). Each one is disabled by default in the bundle; enable the
+#    ones you use. The WeChat Source pairs with an iLink bot and needs a one-time
+#    QR scan on first enable.
+- id: dsh-superagent-local
+  disabled: false
+- id: dsh-superagent-weixin
+  disabled: false
+
+# 3) The board panel (client plugin): adds a "Superagent" tab to the DSH sidebar.
+- insert:
+    - id: superagent-board
+      name: 'dsh-superagent-board'
