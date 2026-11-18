@@ -8,6 +8,11 @@
  *   - right  (~30%)  the **real** board panel, loaded from this same demo origin in an iframe
  *                    (teammate cards, edges and ticket groups), compacted with injected CSS.
  *
+ * Why a shell page: this repository ships the board panel and the orchestrator plugin, not a runnable
+ * DSH Web UI fixture. Capturing the live host would mean touching the production port and real session
+ * data, so the left sidebar and centre conversation are synthesized here with fictional content. The
+ * right column is the real board server + real client app, compacted by injected CSS to fit 30%.
+ *
  * Isolation, like tools/capture-demo-screenshots.mjs:
  *   - a fake superagent `/team` endpoint (fictional demo roster) on a random 127.0.0.1 port,
  *   - the real built board server `lib/server.js` on a random port, fed a fictional board payload,
@@ -15,7 +20,7 @@
  *   - headless Chromium over CDP with a throw-away profile, at deviceScaleFactor 2.
  *
  * All data is fabricated: teammates Atlas / Nova / Orion / Vega / Helios, projects demo-widgets /
- * example-service, generic ticket copy. No production DSH (port 3080) is touched, no host process is
+ * example-service, generic ticket copy. No production DSH host port is touched, no host process is
  * killed, nothing is installed, no git command runs, and every server / temp dir / browser is torn
  * down in the `finally` block.
  *
@@ -301,6 +306,33 @@ svg { display: block; }
 }
 .plug-ico.alt { background: #f3ecff; border-color: #e9defb; color: #7b4bd8; }
 .on-dot { margin-left: auto; width: 6px; height: 6px; border-radius: 50%; background: #2e9e5b; box-shadow: 0 0 0 3px rgba(46, 158, 91, .12); }
+.skill-ico { width: 14px; height: 14px; border: 1.3px solid #b0b0b6; border-radius: 4px; position: relative; flex: none; }
+.skill-ico::after { content: ""; position: absolute; left: 4px; top: 3px; width: 4px; height: 4px; border-radius: 1px; background: #b0b0b6; transform: rotate(45deg); }
+.mcp-ico { width: 14px; height: 14px; border: 1.3px solid #b0b0b6; border-radius: 50%; position: relative; flex: none; }
+.mcp-ico::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: #b0b0b6; }
+.side-item .state-text { margin-left: auto; font-size: 9.5px; color: #a8a8ae; }
+.team-mini {
+  margin: 2px 4px 0; padding: 9px 10px;
+  background: #fff; border: 1px solid rgba(0, 0, 0, .06); border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+}
+.team-avatars { display: flex; align-items: center; }
+.mini-av {
+  width: 22px; height: 22px; margin-left: -6px;
+  border: 2px solid #fff; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 9px; font-weight: 600;
+}
+.mini-av:first-child { margin-left: 0; }
+.mini-av.blue { background: #5b8def; }
+.mini-av.violet { background: #7e6bd6; }
+.mini-av.teal { background: #3f9b8a; }
+.mini-av.orange { background: #c47a3d; }
+.mini-av.rose { background: #b65c74; }
+.team-mini-text { display: flex; flex-direction: column; gap: 2px; margin-top: 7px; }
+.team-mini-text strong { font-size: 11px; font-weight: 600; }
+.team-mini-text span { display: flex; align-items: center; gap: 5px; font-size: 9.5px; color: #8e8e93; }
+.team-mini-text .on-dot { margin-left: 0; width: 5px; height: 5px; box-shadow: none; }
 .side-foot {
   display: flex; align-items: center; gap: 9px;
   margin-top: 8px; padding: 11px 6px 2px;
@@ -352,6 +384,7 @@ svg { display: block; }
   box-shadow: 0 4px 14px rgba(26, 115, 232, .18);
 }
 .bubble.user code { background: rgba(255, 255, 255, .2); color: #fff; border-radius: 4px; padding: 1px 4px; font-size: 11.5px; }
+.bubble.user b, .bubble.user code { white-space: nowrap; }
 .msg-meta { font-size: 10px; color: #a1a1a6; padding-right: 3px; }
 .msg.agent { display: flex; align-items: flex-start; gap: 10px; max-width: 90%; }
 .avatar.small {
@@ -407,6 +440,33 @@ svg { display: block; }
 .pill.mono { font-variant-numeric: tabular-nums; }
 .sync-line { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 2px 0; color: #8e8e93; font-size: 10.5px; }
 .sync-line .ok { color: var(--green); font-weight: 700; }
+.worker-note {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 11px;
+  background: #f7f9fc; border: 1px solid rgba(26, 115, 232, .13); border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .03);
+}
+.worker-avatar {
+  width: 24px; height: 24px; border-radius: 50%; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  background: #5b8def; color: #fff; font-size: 9.5px; font-weight: 700;
+}
+.worker-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 10.5px; color: #5f6368; }
+.worker-line { display: flex; align-items: center; gap: 4px; font-size: 10.5px; color: #5f6368; }
+.worker-text strong { font-size: 11px; font-weight: 600; color: var(--ink); }
+.worker-text b {
+  padding: 0 4px; border: 1px solid rgba(0, 0, 0, .07); border-radius: 4px;
+  background: #fff; color: #3c4043;
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 10px; white-space: nowrap;
+}
+.worker-text span { font-size: 9.5px; color: #8e8e93; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.worker-state {
+  flex: none; margin-left: auto; height: 18px; padding: 1px 7px;
+  display: inline-flex; align-items: center;
+  border: 1px solid #ceead6; border-radius: 999px;
+  background: #e6f4ea; color: #137333; font-size: 9px; font-weight: 600;
+}
 .composer { flex: none; padding: 10px 28px 16px; }
 .composer-inner { max-width: 640px; margin: 0 auto; }
 .composer-box {
@@ -466,10 +526,10 @@ section > h2 { margin: 0 0 6px !important; font-size: 11px !important; font-weig
   display: flex !important; align-items: center !important; justify-content: space-between !important;
   gap: 18px !important; padding: 0 2px !important; min-height: 0 !important;
 }
-#team.team-tree .team-lead, #team.team-tree .team-members { flex: 0 0 158px !important; width: 158px !important; }
-.team-members { display: flex !important; flex-direction: column !important; gap: 7px !important; width: 158px !important; padding: 0 !important; }
+#team.team-tree .team-lead, #team.team-tree .team-members { flex: 0 0 164px !important; width: 164px !important; }
+.team-members { display: flex !important; flex-direction: column !important; gap: 7px !important; width: 164px !important; padding: 0 !important; }
 .card, .card.card-lead {
-  width: 158px !important; min-height: 92px !important;
+  width: 164px !important; min-height: 92px !important;
   padding: 7px 9px !important; gap: 1px !important;
   border-radius: 9px !important;
 }
@@ -542,6 +602,22 @@ main > section:last-of-type { display: none !important; }
       <div class="side-label">插件</div>
       <div class="side-item"><span class="plug-ico">S</span><span>Superagent 调度器</span><span class="on-dot"></span></div>
       <div class="side-item"><span class="plug-ico alt">B</span><span>团队任务板</span><span class="on-dot"></span></div>
+
+      <div class="side-label">团队 <span class="count">5</span></div>
+      <div class="team-mini">
+        <div class="team-avatars">
+          <span class="mini-av blue">A</span><span class="mini-av violet">N</span><span class="mini-av teal">O</span><span class="mini-av orange">V</span><span class="mini-av rose">H</span>
+        </div>
+        <div class="team-mini-text"><strong>5 位 teammate</strong><span><i class="on-dot"></i> 3 位正在执行 · 看板已同步</span></div>
+      </div>
+
+      <div class="side-label">技能</div>
+      <div class="side-item"><span class="skill-ico"></span><span>release-check</span><span class="state-text">内置</span></div>
+      <div class="side-item"><span class="skill-ico"></span><span>board-review</span><span class="state-text">内置</span></div>
+
+      <div class="side-label">MCP 服务器</div>
+      <div class="side-item"><span class="mcp-ico"></span><span>demo-search</span><span class="on-dot"></span></div>
+      <div class="side-item"><span class="mcp-ico"></span><span>local-notes</span><span class="on-dot"></span></div>
     </div>
 
     <div class="side-foot">
@@ -557,7 +633,7 @@ main > section:last-of-type { display: none !important; }
       </span>
       <div class="chat-title">
         <strong>Superagent 调度器</strong>
-        <span><i class="pulse"></i> 在线 · 已连接团队任务板</span>
+        <span><i class="pulse"></i> dispatcher · 在线 · 已连接团队任务板</span>
       </div>
       <span class="chat-chip">演示会话</span>
     </header>
@@ -595,6 +671,15 @@ main > section:last-of-type { display: none !important; }
         </div>
 
         <div class="sync-line"><span class="ok">✓</span> 已同步到团队任务板 · Atlas 领取 DEMO-105 · 演示数据</div>
+
+        <div class="worker-note">
+          <span class="worker-avatar">A</span>
+          <div class="worker-text">
+            <div class="worker-line"><strong>Atlas</strong> 已领取 <b>DEMO-105</b></div>
+            <span>Polish empty state for board list · 正在执行</span>
+          </div>
+          <span class="worker-state">运行中</span>
+        </div>
       </div>
     </div>
 
@@ -731,10 +816,13 @@ async function main() {
 
   const superagentPort = await listen(superagent)
   const tokenFile = join(tmpdir(), 'board-harness-token-' + process.pid)
+  const workFile = join(tmpdir(), 'board-harness-work-' + process.pid + '.json')
   await writeFile(tokenFile, TOKEN + '\n', { mode: 0o600 })
   // The built server reads both at import: point its actions at the fake superagent and its token at a temp file.
+  // The work-status path is a non-existent temp file, so the board cannot read any real host state.
   process.env.DSH_SUPERAGENT_ORIGIN = 'http://127.0.0.1:' + superagentPort
   process.env.DSH_SUPERAGENT_TOKEN_FILE = tokenFile
+  process.env.DSH_SUPERAGENT_WORK_FILE = workFile
   const { startBoardServer } = await import(pathToFileURL(join(PACKAGE, 'lib', 'server.js')).href)
   const boardServer = await startBoardServer({
     port: 0,
@@ -750,7 +838,8 @@ async function main() {
       return
     }
     if (pathname === '/superagent-board/aliases.json' && request.method === 'GET') {
-      sendJson(response, 200, {})
+      // Only a display alias for the main-session card; every teammate keeps its roster name.
+      sendJson(response, 200, { lead: 'Lead' })
       return
     }
     if (pathname === '/superagent-board/board.json' && request.method === 'GET') {
@@ -759,10 +848,6 @@ async function main() {
     }
     if (pathname === '/superagent-board/team.json' && request.method === 'GET') {
       await relay(await fetch(boardServer.url + '/team.json'), response)
-      return
-    }
-    if (pathname === '/superagent-board/work.json' && request.method === 'GET') {
-      await relay(await fetch(boardServer.url + '/work.json'), response)
       return
     }
     if (pathname === '/superagent-board/action' && request.method === 'POST') {
@@ -865,6 +950,7 @@ async function main() {
         board: {
           viewport: { width: frame.clientWidth, height: frame.clientHeight },
           content: { width: doc.documentElement.scrollWidth, height: doc.documentElement.scrollHeight },
+          contentBottom: Math.ceil(Math.max(...Array.from(doc.querySelectorAll('main > section')).map(section => section.getBoundingClientRect().bottom))),
           cards: doc.querySelectorAll('#team .card').length,
           edges: doc.querySelectorAll('.team-edges .edge').length,
           tickets: doc.querySelectorAll('.ticket-row').length,
@@ -873,8 +959,8 @@ async function main() {
       }
     })()`)
     console.log('geometry ' + JSON.stringify(geometry))
-    if (geometry.board.content.height > geometry.board.viewport.height + 1) {
-      throw new Error('board content is taller than its panel: ' + geometry.board.content.height + ' > ' + geometry.board.viewport.height)
+    if (geometry.board.contentBottom > geometry.board.viewport.height) {
+      throw new Error('board content is taller than its panel: ' + geometry.board.contentBottom + ' > ' + geometry.board.viewport.height)
     }
     if (geometry.shell.scrollWidth > geometry.shell.width || geometry.shell.scrollHeight > geometry.shell.height) {
       throw new Error('shell page overflows the viewport')
@@ -883,7 +969,7 @@ async function main() {
     const shot = await cdp.send('Page.captureScreenshot', {
       format: 'png',
       captureBeyondViewport: true,
-      clip: { x: 0, y: 0, width: VIEWPORT.width, height: VIEWPORT.height, scale: SCALE },
+      clip: { x: 0, y: 0, width: VIEWPORT.width, height: VIEWPORT.height, scale: 1 },
     })
     await writeFile(OUT_FILE, Buffer.from(shot.data, 'base64'))
 
@@ -909,6 +995,7 @@ async function main() {
     await boardServer.close()
     await closeServer(superagent)
     await rm(tokenFile, { force: true }).catch(() => {})
+    await rm(workFile, { force: true }).catch(() => {})
   }
 }
 
