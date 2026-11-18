@@ -232,22 +232,46 @@ That inserts `- id: superagent-board / name: 'dsh-superagent-board'` and links t
 package. The sidebar then shows a **Superagent** entry; the panel is served at
 `/superagent-board/`. Optionally pin its port with `DSH_SUPERAGENT_BOARD_PORT`.
 
-### WeChat channel (iLink bot)
+### WeChat channel (iLink bot) — how to connect (quick QR scan)
 
-The Weixin Source talks to the **official iLink Bot protocol of a personal WeChat
-account** — it needs **no CLI, no app id and no secret**:
+**Prerequisites:** a **personal WeChat account** and the **WeChat client 8.0.69 or newer**
+(for the phone-side scan). The iLink Bot side needs **no self-built app, no app id and no
+secret** — the login itself is established by scanning, and the plugin keeps the
+credentials locally.
+
+**Connection steps (QR binding, real mechanism)**
 
 1. Enable the `dsh-superagent-weixin` entry in the profile's `cordis.patch.yml` and
-   restart `dsh-superagent`.
-2. On first start the Source asks iLink for a **login QR code** and writes the image (and
-   a link file) beside its credentials file under `<stateDir>`.
-3. Scan it with **WeChat 8.0.69 or later** and confirm on the phone. The login is saved to
-   `<stateDir>/weixin-bot.json`.
-4. To log in again, point **Login credentials file** at another file and restart.
-5. Add the other side's **wxid** (the Trigger shows it) to the Weixin allowed list under
+   **restart `dsh-superagent`**.
+2. On first start the Source asks iLink for a **login QR code** and writes it to
+   `<stateDir>/weixin-qrcode.png` (with a `.txt` link file beside it); the `weixin` health
+   entry names both paths. The QR **expires after a couple of minutes** and is refreshed at
+   most three times.
+3. Scan it with **WeChat 8.0.69+** and confirm on the phone; the login is saved to
+   `<stateDir>/weixin-bot.json` (the **Login credentials file** field, configurable) and the
+   bot appears in your WeChat chat list (renamable, pinnable).
+4. **Verify:** send one message from that WeChat account to the bot — the `weixin` /
+   `weixin-poll` health entries flip from “waiting for scan” to “saved login”, and the reply
+   arrives in the same chat. The channel is now live.
+5. Add the other side's **wxid** (shown in the Trigger) to the Weixin allowed list under
    **Policy** — until then an incoming message is not admitted.
-6. Note iLink's **24-hour push window**: the bot can push only within 24 hours of the
-   person's last message.
+6. To log in again, point **Login credentials file** at another file and restart; a stale
+   token (`ret`/`errcode` `-14`) makes the plugin move the old file aside
+   (`*.expired-<time>`) and request a new QR by itself.
+
+![iLink Bot login QR (expired · masked)](docs/screenshots/weixin-qr-binding.png)
+
+*The login QR as it appears during binding (real binding screen). The QR is **expired and
+masked** — scanning this image does nothing; in real use it is live, lives only inside your
+own `<stateDir>`, and expires within minutes. No account names, tokens or phone numbers are
+shown.*
+
+**Push window (measured, not the documented 24 hours):** iLink only lets the bot push within
+a window after the person's **last** message. Measured, that window closed roughly an hour
+after the last inbound message, with `sendMessage` answering `ret=-2 errcode=0 prepare
+failed`; once the person wrote again, about ten queued replies went out within 2.5 minutes.
+So keep queued replies short-lived instead of hoarding them; a rejected send is recorded on
+the `weixin-send` health entry rather than dropped silently.
 
 ### Verify the install
 

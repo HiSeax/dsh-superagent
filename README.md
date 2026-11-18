@@ -180,16 +180,24 @@ dsh plugin --profile superagent add "link:$PWD\packages\dsh-superagent-board"
 
 它会插入 `- id: superagent-board / name: 'dsh-superagent-board'` 并链接该包。之后侧栏出现 **Superagent** 入口，面板地址为 `/superagent-board/`；可用 `DSH_SUPERAGENT_BOARD_PORT` 固定端口。
 
-### 微信通道（iLink Bot）
+### 微信通道（iLink Bot）——怎么连接（快捷扫码）
 
-微信源走的是**个人微信账号的官方 iLink Bot 协议**——**不需要 CLI、不需要 app id、不需要 secret**：
+**前提**：一个**个人微信号**，以及**微信客户端 8.0.69 或更新**（手机端扫码用）。iLink Bot 侧**不需要自建应用、不需要 app id / secret**——登录本身通过扫码建立，凭据由插件保存在本地。
 
-1. 在 profile 的 `cordis.patch.yml` 里启用 `dsh-superagent-weixin`，重启 `dsh-superagent`。
-2. 首次启动时，该源会向 iLink 索取**登录二维码**，并把图片（与一个 link 文件）写在 `<stateDir>` 下它的凭据文件旁边。
-3. 用**微信 8.0.69 或更新**扫该二维码并在手机上确认；登录态保存到 `<stateDir>/weixin-bot.json`。
-4. 再次登录：把 **Login credentials file** 指向另一个文件后重启。
-5. 把对方的 **wxid**（Trigger 里会显示）加入 **Policy** 下的 Weixin allowed list——否则来消息不会被接纳。
-6. 注意 iLink 的 **24 小时推送窗口**：只有在对方最后一次消息的 24 小时内，bot 才能主动推送。
+**连接步骤（扫码绑定，真实机制）**
+
+1. 在 profile 的 `cordis.patch.yml` 里启用 `dsh-superagent-weixin`，**重启 `dsh-superagent`**。
+2. 首次启动时该源会向 iLink 索取**登录二维码**，写在 `<stateDir>/weixin-qrcode.png`（旁边附一个 `.txt` 链接文本）；`weixin` 健康项会指出这两个文件路径。二维码**数分钟即失效**，插件最多自动刷新 3 次。
+3. 用**微信 8.0.69+** 扫该图并在手机上确认登录；登录态保存到 `<stateDir>/weixin-bot.json`（即 **Login credentials file** 字段，可改），bot 会出现在你的微信会话列表里（可重命名/置顶）。
+4. **验证**：用那个微信号给 bot **发一句话**——`weixin` / `weixin-poll` 健康项从“等待扫码”转为“已保存登录”，回复出现在同一聊天里，即通道已通。
+5. 把对方的 **wxid**（Trigger 里会显示）加入 **Policy** 下的 Weixin allowed list，否则来消息默认不被接纳。
+6. 再次登录：把 **Login credentials file** 指向另一个文件后重启；token 过期（`ret`/`errcode` `-14`）时插件会把旧文件挪成 `*.expired-<时间>` 并自行重新出码。
+
+![iLink Bot 登录二维码（已过期 · 已打码）](docs/screenshots/weixin-qr-binding.png)
+
+*登录二维码示意（来自真实绑定界面）。二维码**已过期且已打码**——扫这张图不会有任何效果；实际使用时它是活的、只在你自己的 `<stateDir>` 里、数分钟失效。图中不含账号名、token 或手机号。*
+
+**推送窗口（实测，非文档宣称的 24 小时）**：iLink 只允许 bot 在对方**最后一条消息之后的一段时间内**主动推送。实测该窗口大约在最后入站后约 1 小时关闭，之后 `sendMessage` 返回 `ret=-2 errcode=0 prepare failed`；对方再发一条后，队列里约 10 条回复在 2.5 分钟内发出。因此排队回复应短命、不要囤积；被拒的发送会记在 `weixin-send` 健康项，而不是静默丢弃。
 
 ### 验证安装成功
 
