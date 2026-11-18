@@ -16,8 +16,8 @@ describe('fetchSuperagentTeam', () => {
       return new Response(JSON.stringify({
         ok: true,
         teammates: [
-          { id: 't-1', name: '引星主线', role: '引星项目总负责', sessionId: 'teammate-1', state: 'running', updatedAt: 'x' },
-          { id: 't-2', name: 'DSH客户端', role: '任务板 owner', sessionId: 'teammate-2', state: 'idle', updatedAt: 'x' },
+          { id: 't-1', name: 'Vega', role: 'Demo workspace lead', sessionId: 'teammate-1', state: 'running', updatedAt: 'x' },
+          { id: 't-2', name: 'Atlas', role: '任务板 owner', sessionId: 'teammate-2', state: 'idle', updatedAt: 'x' },
         ],
       }), { status: 200, headers: { 'content-type': 'application/json' } })
     }
@@ -25,19 +25,19 @@ describe('fetchSuperagentTeam', () => {
     expect(seenUrl.endsWith('/team')).toBe(true)
     expect(seenAuth).toBe('Bearer board-token')
     expect(team!.members).toEqual([
-      { id: 't-1', name: '引星主线', role: '引星项目总负责', state: 'working', sessionId: 'teammate-1' },
-      { id: 't-2', name: 'DSH客户端', role: '任务板 owner', state: 'idle', sessionId: 'teammate-2' },
+      { id: 't-1', name: 'Vega', role: 'Demo workspace lead', state: 'working', sessionId: 'teammate-1' },
+      { id: 't-2', name: 'Atlas', role: '任务板 owner', state: 'idle', sessionId: 'teammate-2' },
     ])
   })
 
   it('stored 保留，非法行被丢弃', async () => {
     const fetcher = answer(200, { ok: true, teammates: [
-      { id: 't-3', name: '计算书技能', role: '技能 owner', state: 'stored' },
+      { id: 't-3', name: 'Nova', role: '技能 owner', state: 'stored' },
       { id: '', name: '坏行', role: 'x', state: 'idle' },
       { id: 't-4' },
     ] })
     const team = await fetchSuperagentTeam({ token: 't', fetcher })
-    expect(team!.members).toEqual([{ id: 't-3', name: '计算书技能', role: '技能 owner', state: 'stored' }])
+    expect(team!.members).toEqual([{ id: 't-3', name: 'Nova', role: '技能 owner', state: 'stored' }])
   })
 
   it('保留成员当前工单 id 与标题', async () => {
@@ -109,10 +109,10 @@ describe('forwardTeamAction', () => {
 describe('board server routes', () => {
   const team = {
     main: { id: 'lead', name: 'lead', role: 'lead', state: 'working' },
-    members: [{ id: 't-1', name: '引星主线', role: '引星项目总负责', state: 'working', sessionId: 'teammate-1' }],
+    members: [{ id: 't-1', name: 'Vega', role: 'Demo workspace lead', state: 'working', sessionId: 'teammate-1' }],
   }
   const board = {
-    tickets: [{ id: 'T1', title: '修微信收图', state: 'executing', ownerMemberId: 't-1', updatedAt: '2026-11-06T16:00:00+08:00' }],
+    tickets: [{ id: 'T1', title: 'Fix timezone handling in export button', state: 'executing', ownerMemberId: 't-1', updatedAt: '2026-11-06T16:00:00+08:00' }],
   }
 
   it('GET /team.json 返回名册行；GET /board.json 带成员与工单', async () => {
@@ -123,7 +123,7 @@ describe('board server routes', () => {
       expect(teamView.teamDown).toBe(false)
       expect(teamView.boardDown).toBe(false)
       expect(teamView.main.id).toBe('lead')
-      expect(teamView.members[0]).toMatchObject({ id: 't-1', name: '引星主线', displayName: '引星主线', state: 'working', ticketTitle: '修微信收图', sessionId: 'teammate-1' })
+      expect(teamView.members[0]).toMatchObject({ id: 't-1', name: 'Vega', displayName: 'Vega', state: 'working', ticketTitle: 'Fix timezone handling in export button', sessionId: 'teammate-1' })
 
       const boardData = await (await fetch(`${server.url}/board.json`)).json() as { members: unknown[]; tickets: unknown[] }
       expect(boardData.members).toHaveLength(1)

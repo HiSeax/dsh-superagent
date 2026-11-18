@@ -72,9 +72,9 @@ const relay = async (upstream, response) => {
 const TEAM = {
   main: { id: 'lead', name: 'lead', role: 'lead', state: 'working' },
   members: [
-    { id: 't-2e1ff2bc', name: 'DSH客户端', role: '任务板、侧栏与 DSH 客户端插件的唯一 owner（状态/别名/动效）', state: 'running', sessionId: 'teammate-ffdefb94f5a3' },
-    { id: 't-45825318', name: '计算书技能', role: '计算书技能唯一 owner：脚本、模板、批量迁移、验证链', state: 'idle', sessionId: 'teammate-d10dd6a4d224' },
-    { id: 't-edb003ec', name: '高斯专项', role: '高斯泼溅项目专项负责（保持原有范围）', state: 'stored', sessionId: 'teammate-c266672e0ef3' },
+    { id: 't-2e1ff2bc', name: 'Atlas', role: 'Frontend owner · board widgets, sidebar and client plugin', state: 'running', sessionId: 'teammate-demo-1' },
+    { id: 't-45825318', name: 'Nova', role: 'Backend owner · export service and scripts', state: 'idle', sessionId: 'teammate-demo-2' },
+    { id: 't-edb003ec', name: 'Orion', role: 'CI & release owner (demo scope)', state: 'stored', sessionId: 'teammate-demo-3' },
   ],
 }
 const BOARD = {
@@ -84,7 +84,7 @@ const BOARD = {
   main: TEAM.main,
   members: [],
   tickets: [
-    { id: 'T1', title: '修微信收图', state: 'executing', ownerMemberId: 't-2e1ff2bc', updatedAt: new Date(Date.now() - 3 * 60 * 1000).toISOString(), summary: '已合并；等待复核' },
+    { id: 'T1', title: 'Fix timezone handling in export button', state: 'executing', ownerMemberId: 't-2e1ff2bc', updatedAt: new Date(Date.now() - 3 * 60 * 1000).toISOString(), summary: '已合并；等待复核' },
     { id: 'T2', title: '整理工单看板', state: 'done', ownerMemberId: 't-45825318', updatedAt: '2026-11-06T15:00:00+08:00', summary: '完成' },
   ],
 }
@@ -276,9 +276,9 @@ async function main() {
 
     const teamText = await evaluate(cdp, "document.querySelector('#team').innerText")
     check((await evaluate(cdp, "document.querySelectorAll('#team .card').length")) === 4, 'roster renders the lead and three teammates')
-    check(teamText.includes('DSH客户端') && teamText.includes('计算书技能') && teamText.includes('高斯专项'), 'member cards show the /team display names')
-    check(teamText.includes('任务板、侧栏与 DSH 客户端插件'), 'member card shows the /team role')
-    check(teamText.includes('修微信收图'), 'the active ticket fills 当前工单')
+    check(teamText.includes('Atlas') && teamText.includes('Nova') && teamText.includes('Orion'), 'member cards show the /team display names')
+    check(teamText.includes('board, sidebar and client plugin owner'), 'member card shows the /team role')
+    check(teamText.includes('Fix timezone handling in export button'), 'the active ticket fills 当前工单')
     check(teamText.includes('运行中') && teamText.includes('空闲') && teamText.includes('未启动'), 'running / idle / stored read from the roster')
     check(!teamText.includes('lodestar-owner') && !teamText.includes('local-source-dev'), 'old DSH agentTeam members are gone')
     check((await evaluate(cdp, "document.querySelector('#summary').textContent")) === '团队 3 成员 · 2 工单', 'summary counts the roster only')
@@ -293,7 +293,7 @@ async function main() {
 
     await evaluate(cdp, "document.querySelector('.ticket-row[data-ticket-id=\"T1\"]').click()")
     await waitFor(cdp, "document.querySelector('#detail').hidden === false")
-    check(await evaluate(cdp, "document.querySelector('#detail').innerText.includes('修微信收图')"), 'clicking a row opens the detail panel')
+    check(await evaluate(cdp, "document.querySelector('#detail').innerText.includes('Fix timezone handling in export button')"), 'clicking a row opens the detail panel')
     check(await evaluate(cdp, "document.querySelector('#detail [data-action=\"stop\"]') !== null && document.querySelector('#detail [data-action=\"retry\"]') === null"), 'active ticket only offers stop')
     await evaluate(cdp, "document.querySelector('#detail [data-action=\"stop\"]').click()")
     check((await evaluate(cdp, "document.querySelector('#detail [data-action=\"stop\"]').textContent")).includes('确认执行？'), 'first stop click arms the inline confirmation')
@@ -341,10 +341,10 @@ async function main() {
     await waitFor(cdp, "document.querySelector('#context-menu').hidden === false")
     await evaluate(cdp, "document.querySelector('#context-menu [data-menu-action=\"rename\"]').click()")
     await waitFor(cdp, "document.querySelector('#rename-dialog').hidden === false")
-    check((await evaluate(cdp, "document.querySelector('#rename-name').value")) === 'DSH客户端', 'rename dialog prefills the roster name')
-    await evaluate(cdp, "document.querySelector('#rename-name').value = 'DSH客户端改'; document.querySelector('#rename-role').value = '任务板 owner（已改）'; document.querySelector('#rename-form').requestSubmit()")
-    await waitFor(cdp, "document.querySelector('#team').innerText.includes('DSH客户端改')")
-    check((await evaluate(cdp, "document.querySelector('#team').innerText")).includes('任务板 owner（已改）'), 'rename applies through /team update immediately')
+    check((await evaluate(cdp, "document.querySelector('#rename-name').value")) === 'Atlas', 'rename dialog prefills the roster name')
+    await evaluate(cdp, "document.querySelector('#rename-name').value = 'Atlas-Renamed'; document.querySelector('#rename-role').value = 'Frontend owner (renamed)'; document.querySelector('#rename-form').requestSubmit()")
+    await waitFor(cdp, "document.querySelector('#team').innerText.includes('Atlas-Renamed')")
+    check((await evaluate(cdp, "document.querySelector('#team').innerText")).includes('Frontend owner (renamed)'), 'rename applies through /team update immediately')
     check((await evaluate(cdp, "document.querySelector('#rename-dialog').hidden")) === true, 'rename dialog closes after success')
     check((await evaluate(cdp, "document.querySelector('#toast').textContent")) === '已重命名', 'rename shows the success toast')
 
@@ -352,10 +352,10 @@ async function main() {
     await waitFor(cdp, "document.querySelector('#context-menu').hidden === false")
     await evaluate(cdp, "document.querySelector('#context-menu [data-menu-action=\"delete\"]').click()")
     await waitFor(cdp, "document.querySelector('#delete-dialog').hidden === false")
-    check((await evaluate(cdp, "document.querySelector('#delete-dialog').innerText")).includes('高斯专项'), 'delete dialog names the target member')
+    check((await evaluate(cdp, "document.querySelector('#delete-dialog').innerText")).includes('Orion'), 'delete dialog names the target member')
     await evaluate(cdp, "document.querySelector('#delete-confirm').click()")
     await waitFor(cdp, "document.querySelectorAll('#team .card').length", value => value === 3)
-    check(!(await evaluate(cdp, "document.querySelector('#team').innerText")).includes('高斯专项'), 'delete removes the member from the board')
+    check(!(await evaluate(cdp, "document.querySelector('#team').innerText")).includes('Orion'), 'delete removes the member from the board')
     check((await evaluate(cdp, "document.querySelector('#summary').textContent")) === '团队 2 成员 · 2 工单', 'summary follows the roster after delete')
 
     superagentUp = false

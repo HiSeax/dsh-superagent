@@ -55,7 +55,7 @@ import { buildBoard } from '../src/app/board.ts'
 describe('buildBoard', () => {
   it('输出 schemaVersion 1 且工单状态映射到枚举', () => {
     const board = buildBoard({
-      tickets: [{ id: 'T1', title: '修微信收图', state: 'working', owner: 'weixin-media-dev', updatedAt: '2026-11-06T16:00:00+08:00', summary: '已合并' }],
+      tickets: [{ id: 'T1', title: 'Fix timezone handling in export button', state: 'working', owner: 'weixin-media-dev', updatedAt: '2026-11-06T16:00:00+08:00', summary: '已合并' }],
       members: []
     })
     expect(board.schemaVersion).toBe(1)
@@ -322,12 +322,12 @@ import { describe, it, expect } from 'vitest'
 import { aggregate } from '../src/aggregate.ts'
 
 const team = { main: { id: 'lead', name: 'lead', role: 'lead', state: 'working' }, members: [{ id: 'local-source-dev', name: 'local-source-dev', role: 'teammate', state: 'working' }] }
-const board = { schemaVersion: 1, generatedAt: 'x', degraded: null, main: team.main, members: [], tickets: [{ id: 'T1', title: '修微信收图', state: 'executing', ownerMemberId: 'local-source-dev', updatedAt: 'x' }] }
+const board = { schemaVersion: 1, generatedAt: 'x', degraded: null, main: team.main, members: [], tickets: [{ id: 'T1', title: 'Fix timezone handling in export button', state: 'executing', ownerMemberId: 'local-source-dev', updatedAt: 'x' }] }
 
 describe('aggregate', () => {
   it('成员显示工单标题作为 displayName', () => {
     const r = aggregate({ team, board, now: new Date('2026-11-06T16:40:00Z') })
-    expect(r.members[0].displayName).toBe('修微信收图')
+    expect(r.members[0].displayName).toBe('Fix timezone handling in export button')
     expect(r.members[0].ticketId).toBe('T1')
   })
   it('无工单时回退 kebab 名，超 24 字截断', () => {

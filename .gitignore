@@ -26,3 +26,8 @@ package-lock.json
 # OS / editor
 .DS_Store
 Thumbs.db
+
+# Board/panel acceptance screenshots are generated at runtime and may contain real
+ # operator data (real workspace names, machine paths, account handles). Never ship them.
+**/artifacts/
+!docs/screenshots/

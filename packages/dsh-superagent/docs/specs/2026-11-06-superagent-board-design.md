@@ -75,18 +75,18 @@
     {
       "id": "local-source-dev",
       "name": "local-source-dev",          // 原 kebab 名
-      "displayName": "修微信收图",          // 别名层结果；无工单时回退 name
+      "displayName": "Fix timezone handling in export button",          // 别名层结果；无工单时回退 name
       "role": "teammate",
       "state": "working",                  // working | idle | blocked | failed | unknown
       "ticketId": "T-2026-...",            // 当前工单，可为 null
-      "ticketTitle": "修微信收图",
+      "ticketTitle": "Fix timezone handling in export button",
       "lastActivityAt": "2026-11-06T16:38:12+08:00"
     }
   ],
   "tickets": [
     {
       "id": "T-...",
-      "title": "修微信收图",
+      "title": "Fix timezone handling in export button",
       "state": "executing",                // new | evaluating | executing | review | done | blocked | failed | stopped
       "ownerMemberId": "local-source-dev",
       "updatedAt": "...",

@@ -11,9 +11,49 @@
 
 ---
 
+## 与官方 DSH 的关系
+
+**DSH 是什么。** [DeepSeek Harness](https://www.deepseek.com/en/harness/) 是**宿主平台**：桌面/Web 外壳、会话（Session，即 agent 运行时与其工具沙箱）、插件系统（bundle、客户端插件、agent preset、persona）、profile / cordis 配置机制、允许插件添加侧栏入口与主面板的 **UI slot API**，以及 MCP 客户端。DSH 是另一个独立产品，**不**包含在本仓库里。
+
+**本仓库是什么。** 两个**跑在 DSH 之上的第三方插件**：
+
+- `packages/dsh-superagent` —— 编排插件；
+- `packages/dsh-superagent-board` —— 看板面板插件。
+
+它**不是 DSH 的 fork，也不替换 DSH**；没有 DSH 宿主它跑不起来。
+
+**哪些是官方提供、哪些是本仓库提供**
+
+| DSH（官方）提供 | 本仓库提供 |
+| --- | --- |
+| 宿主外壳与 Web UI、会话运行时、工具沙箱 | 编排逻辑：Sources → Eval → Ticket → Assignment → Report/Reply |
+| 插件加载机制（bundle manifest、客户端 bundle 注入、slot 注册表） | 看板面板（侧栏入口 + 主面板） |
+| profile 与 `cordis.patch.yml` patch 机制、profile 下 `node_modules` 解析 | 通道适配：GitHub、飞书、本地 DSH 会话、微信（iLink Bot） |
+| agent preset / persona 插件、`tools.restrict` 守卫 | 执行器所跑的 worker preset 与团队 prompt 分节 |
+| Settings UI、MCP 客户端（可自行挂 MCP server） | **Policy 策略**：准入表、accept 模式（`off`/`observe`/`auto`）、主动规则、Mandate |
+| MCP 客户端 | 服务脚本：`scripts/dsh-superagent.mjs`、`scripts/install-windows.ps1` |
+
+**版本兼容（本机实测）**：实测 **DSH `0.2.2-rc.3`**。`scripts/install-windows.ps1` 会拒绝低于 **0.2** 的 `dsh`（0.1.x 没有 `--profile`）。升级 DSH 可能破坏：
+
+- 看板客户端 bundle（它注入 `@deepseek-ai/dsh-client-*` 模块，并通过 `sessions` 服务的 `list` store 形状与 `session:worker-*` 行键过滤 `worker-*` 会话——两者都是 **fail-open**，宿主改动只会让 worker 行重新显示，不会把列表搞坏）；
+- 若宿主改名了 bundle 的 client `inject` 里的那些 client 包，注入会失败；
+- 若 preset / persona 插件的 id 变化，会影响 worker preset。
+
+升级 DSH 后请重跑 `pnpm --filter dsh-superagent-board smoke` 与 `pnpm --filter dsh-superagent check`。
+
+**依赖边界**：本仓库**不修改任何 DSH 官方文件**，只通过三种方式挂上去：
+
+1. 在 **profile 的** `cordis.patch.yml` 里加 `insert` / `config` 块；
+2. 在 profile 的 `node_modules` 下建一个指向包目录的 **junction**（`dsh plugin --profile <profile> add "link:<路径>"` 会替你建）；
+3. 在 Settings 或 profile 里填你自己的值（例如 `stateDir`）。
+
+卸载 = 移除 insert 行 + 删 junction + 删 profile 目录。
+
+---
+
 ## 截图
 
-所有截图都来自**隔离的演示实例**（独立 profile、独立端口、临时 `stateDir`），运行的是**虚构**数据——虚构队友、虚构工单，无任何真实凭据、真实项目名或用户路径。
+所有看板截图都来自**隔离的演示实例**（独立 profile、独立端口、临时 `stateDir`），运行的是**虚构**数据——虚构队友、虚构工单，无任何真实凭据、真实项目名或用户路径。
 
 | 看板总览——谁在干什么、工单分布 | 工单详情——授权范围、任务、回报 |
 | --- | --- |
@@ -35,16 +75,17 @@
 
 ```
 dsh-superagent-release/
-├── README.md (中文) / README.en.md (English)      双语总览（本文件）
+├── README.md / README.en.md         双语总览（本文件）
 ├── LICENSE                          MIT，两个子包共用
-├── SETUP.md                         部署指引（从这里开始）
+├── SETUP.md                         部署速览（从这里开始）
 ├── docs/
 │   ├── concepts.md                  流水线：评估 → 派单 → 工单 → 队友 → 回报
-│   ├── screenshots/                 演示实例截图（虚构数据）
+│   └── screenshots/                 演示实例截图（虚构数据）
 ├── examples/
 │   ├── profiles/desktop/cordis.patch.example.yml   脱敏的 profile 挂载示例
 │   ├── policy.admission.example.md                 准入表、accept 模式、主动规则
 │   └── walkthrough.md                              一条消息 → 一个工单 → 一个 PR
+├── tools/capture-demo-screenshots.mjs              复现 docs/screenshots/* 的脚本
 └── packages/
     ├── dsh-superagent/              编排插件本体（Sources、Engine、Policy、提示词、
     │                                执行器、通道、docs 000–008、测试）
@@ -55,91 +96,121 @@ dsh-superagent-release/
 
 ## 它是怎么工作的
 
-一条消息经过五个阶段。每个阶段的规范描述见
-[`packages/dsh-superagent/docs/`](packages/dsh-superagent/docs/002-authorization.md) 与
-[`docs/concepts.md`](docs/concepts.md)。
+1. **Source → Trigger（触发）。** 通道把一条消息记为 **Trigger**，并标注是否指向 agent（`mention` / `direct`）。
+2. **Eval（闸门）。** 检查发送者与该 Source 的 **Policy**：在名单上且指向 agent 的人是**显式请求**；其他消息走**准入表**与 **accept 模式**（`off` / `observe`（默认）/ `auto`）。
+3. **派单（Dispatch）。** 主会话用 `orchestrator_route` 处置显式候选（accept / attach / stop / ignore）。**accept** 原子地创建：**Ticket**、其 **Mandate**、对该线程的 **Subscriptions**、首个 **Assignment**，以及一条确认回复。
+4. **工单 → 执行器 → 队友。** 每个工单有自己的执行器会话（`worker-<ticketId>`）与目录；可派生**队友**子会话。遇到只有人能定的事，工单标记 `blocked`。
+5. **回报 / 回复。** 通道写**确认**、**答复**、**结果**或**需要关注**——每一条都必须有允许它的规则。
 
-1. **Source → Trigger（触发）。** 通道（GitHub、飞书、本地 DSH 会话、微信）把一条消息记为 **Trigger**，并标注是否指向 agent（`mention` / `direct`）。
-2. **Eval（闸门）。** 闸门检查发送者与该 Source 的 **Policy**：在名单上且指向 agent 的人是**显式请求**；其他消息走**准入表**（按接收范围，最多三格：explicit / inferred / ignore）与 **accept 模式**：
-   - `off`——任何 inferred 都不成为候选；
-   - `observe`（默认）——inferred 候选会被评估，正向评估记为 *ignore — “would accept”*，**不**接受；
-   - `auto`——inferred 候选的正向评估会被接受。
-3. **派单（Dispatch）。** 主会话用 `orchestrator_route` 处置显式候选（accept / attach / stop / ignore，一次可多条）。**accept** 原子地创建：**Ticket**、其 **Mandate**（命中的规则）、对该线程的 **Subscriptions**、首个 **Assignment**，以及一条确认回复。
-4. **工单 → 执行器 → 队友。** 每个工单有自己的执行器会话（`worker-<ticketId>`）与自己的目录；它可以派生**队友**子会话做并行子任务。工作以 Assignment 的形式回报；若遇到只有人能定的事，工单标记 `blocked` 并带一个问题。
-5. **回报 / 回复（Report / Reply）。** 执行器回报后，通道写**确认**、**答复**、**结果**或**需要关注**——每一条都必须有允许它的规则。看板只把需要人的部分顶出来。
+详见 [`docs/concepts.md`](docs/concepts.md) 与
+[`packages/dsh-superagent/docs/`](packages/dsh-superagent/docs/002-authorization.md)。
 
 ## 与官方基线的区别
 
-并不存在一个可以拿来对比的“官方 superagent 产品”；诚实的基线是两个：
-（a）**DeepSeek Harness 0.2 基础版**——宿主本身没有任何主动式编排；
-（b）**本代码所源自的上游研究原型**
-（[`vHao11/dsh-superagent@windows-adapt`](https://github.com/vHao11/dsh-superagent/tree/windows-adapt)），它在实践中是 **Unix-only** 的。本发布在它们之上增加了：
+诚实基线是两个：①**DSH 0.2 基础版**——宿主没有主动式编排；②**本代码源自的上游研究原型**
+（[`vHao11/dsh-superagent@windows-adapt`](https://github.com/vHao11/dsh-superagent/tree/windows-adapt)），实践上 **Unix-only**。本发布增加了：
 
-| 方面 | 基线（DSH 0.2 宿主 / 上游原型） | 本发布 |
+| 方面 | 基线 | 本发布 |
 | --- | --- | --- |
-| 主动式编排 | 宿主没有：会话都由人手动开 | Source → Eval → Ticket → Executor → Report 的流水线，且接受动作受策略闸门约束 |
-| 操作系统 | 上游原型实践上 Unix-only（`fcntl`、`tmux`、`#!/bin/sh` shim、`bash` 工具、只认 `/…` 路径） | **Windows 适配**：盘符/UNC 路径、`PATHEXT`、`pwsh` shell 工具、`windowsHide`、大小写不敏感路径、`waitForStateLock()`、无 tmux/fcntl 的服务管理器（`scripts/dsh-superagent.mjs`/`.cmd`）、`install-windows.ps1` |
-| Windows 上的服务生命周期 | 上游服务管理器面向 tmux | `taskkill /T /F` 前先做 PID 身份校验（fail-closed）、DSH ≥ 0.2 版本闸门、安装器只改显式指定的 profile |
-| 通道 | 上游原型为 GitHub + 飞书 | GitHub、飞书、**本地 DSH 会话**、**个人微信（iLink Bot）** |
-| 人的界面 | 终端 / 日志 | DSH 侧栏里的**看板**：团队卡片、工单分组、stop / retry / unfocus 且带内联确认 |
-| 授权 | 临时 allow-list | 有版本的 **Policy**：按接收范围的准入表、accept 模式 `off`/`observe`/`auto`、主动规则、Mandate 记录命中的规则与 Policy 版本 |
-| 评估工具链 | — | **Eval 工具链**：评估批处理、闸门强度、每条启用规则各判一次、Policy 变更后重排队、`candidate` / `decide` 命令 |
-| 打包 | 研究性 checkout | 单仓发布快照：编排器 + 看板 + 脱敏的配置/策略示例 + 双语文档 |
+| 主动式编排 | 宿主没有 | Source → Eval → Ticket → Executor → Report 流水线，接受动作受策略闸门约束 |
+| 操作系统 | 实践上 Unix-only（`fcntl`、`tmux`、`#!/bin/sh` shim、`bash` 工具、只认 `/…` 路径） | **Windows 适配**：盘符/UNC 路径、`PATHEXT`、`pwsh` shell 工具、`windowsHide`、大小写不敏感路径、`waitForStateLock()`、无 tmux/fcntl 的服务管理器、`install-windows.ps1` |
+| Windows 上的服务生命周期 | 面向 tmux | `taskkill /T /F` 前做 PID 身份校验（fail-closed）、DSH ≥ 0.2 闸门、安装器只改显式指定的 profile |
+| 通道 | GitHub + 飞书 | GitHub、飞书、**本地 DSH 会话**、**微信（iLink Bot）** |
+| 人的界面 | 终端 / 日志 | DSH 侧栏里的**看板** |
+| 授权 | 临时 allow-list | 有版本的 **Policy**：准入表、accept 模式、规则、Mandate |
+| 评估工具链 | — | **Eval 工具链**：决策留痕、Policy 变更后重排队 |
+| 打包 | 研究性 checkout | 单仓发布快照 + 脱敏示例 + 双语文档 |
 
-## 为什么选用（以及它解决什么痛点）
+## 为什么选用（解决什么痛点）
 
-| 能力 | 解决的痛点 |
+| 能力 | 痛点 |
 | --- | --- |
-| **Windows 友好** | 上游原型实践上必须 Unix。这里通过盘符/UNC 路径、`PATHEXT`、`pwsh` shell 工具、隐藏控制台窗口，让它在普通 Windows 工作站上直接跑（不需要 WSL）。痛点：装得上、跑不起来。 |
-| **微信通道（iLink Bot）** | 真正的派活发生在聊天里。个人微信可以把活交给 agent，并在同一个聊天里拿到结果。痛点：在聊天与终端之间来回复制粘贴。 |
-| **看板** | 长时间运行的 agent 工作是黑盒。看板显示团队、工单分布、什么被卡住。痛点：它现在到底在干嘛？ |
-| **工单 / 派单 / 回执编排** | 一个巨大的聊天会丢上下文与权限边界。每个工单有自己的会话、目录、Mandate 与线程订阅，回报以结构化 Assignment 回来。痛点：这个改动到底是哪个对话负责的？ |
-| **策略化 accept（`off` / `observe` / `auto`）** | 能为一个团队干活的 agent，也可能浪费整个团队的注意力。`observe` 只记 *would accept* 而不动手；`auto` 只在命中规则时动手；Mandate 记录为什么。痛点：它为什么做这个？我能不能不盯着也放心让它动？ |
-| **Eval 工具链** | 主动式工作需要可审计的决策，而不是凭感觉。每次评估对每条启用规则各判一次，决策被记录，Policy 变更会重新排队受影响的工作。痛点：主动动作没有审计痕迹。 |
+| **Windows 友好** | 普通 Windows 工作站直接跑，不需要 WSL。痛点：装得上、跑不起来。 |
+| **微信通道（iLink Bot）** | 派活在聊天里发生，结果回同一个聊天。痛点：聊天与终端之间来回复制。 |
+| **看板** | agent 长时间工作不可见。痛点：它现在在干嘛？ |
+| **工单 / 派单 / 回执编排** | 每个工单有自己的会话、目录、Mandate、线程订阅。痛点：这个改动是哪个对话负责的？ |
+| **策略化 accept** | `observe` 只记 *would accept* 不动手；`auto` 只在命中规则时动手。痛点：它为什么做这个？ |
+| **Eval 工具链** | 每次评估对每条规则各判一次，决策留痕。痛点：主动动作没有审计痕迹。 |
 
 ## 什么时候该用，什么时候不必
 
-**合适**
+**合适**：一个仓库一个团队；大家已在用某个通道；想要开分支开 PR 并在原对话回报；愿意先看 `observe` 决策再开 `auto`；Windows + DSH 0.2+。
 
-- 一个仓库、一个团队，而且大家已经在用某个通道（GitHub、飞书、微信）。
-- 你想要一个会开分支、开 PR，并在原对话里回报的 agent。
-- 你愿意先看 `observe` 模式的决策记录，再打开 `auto`。
-- Windows 工作站 + DSH 0.2+。
+**不合适**：想要打磨过的成品；需要跨多仓库编排；不能接受 worker 以你的 OS 用户身份执行命令，或 Windows 上 `blockedCommands` 对 worker 不生效。
 
-**不合适**
+## 安装方法
 
-- 你想要一个打磨过、有人维护的成品——这是研究原型，有毛边（见免责声明与
-  [`packages/dsh-superagent/WINDOWS-ADAPT.md`](packages/dsh-superagent/WINDOWS-ADAPT.md) 里的已知限制）。
-- 你需要跨多仓库编排——设计上是一个 agent 对一个仓库。
-- 你不能接受 worker 会话以你的 OS 用户身份执行命令；或你在 Windows 上需要 `blockedCommands` 对 worker 生效（它不生效）。若隔离很重要，请用专用 OS 账户与 agent 自己的 GitHub 账户。
-
-## 安装
-
-前置：**DeepSeek Harness 0.2+**（`dsh` CLI）、**Node.js ≥ 18**、**pnpm**。
+前置：**DSH 0.2+**（实测 `0.2.2-rc.3`）与 `dsh` CLI、**Node.js ≥ 18**、**pnpm**、**git**，以及一个 **agent 用的 GitHub 账户**（有 repo 权限的 token）。
 
 ```powershell
-# 1) 构建两个包（typecheck + 测试 + build）
+# 1) 克隆并构建
+git clone https://github.com/HiSeax/dsh-superagent.git dsh-superagent-release
+cd dsh-superagent-release
 pnpm install
-pnpm --filter dsh-superagent check
+pnpm --filter dsh-superagent check                    # typecheck + vitest + build
 pnpm --filter dsh-superagent-board build
 
-# 2) 建一个专用 profile，并把插件指向一个 state 目录
-#    （完整流程见 SETUP.md，或让编码 agent 照着 SETUP.md 陪你装）
+# 2) 建一个专用 profile
 $dsh = "C:\Users\<you>\AppData\Local\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd"
 & $dsh superagent --from-default-profile web
-powershell -ExecutionPolicy Bypass -File packages\dsh-superagent\scripts\install-windows.ps1 -Profile superagent -Dsh $dsh -DryRun
-powershell -ExecutionPolicy Bypass -File packages\dsh-superagent\scripts\install-windows.ps1 -Profile superagent -Dsh $dsh
 
-# 3) 在 <DSH_HOME>\profiles\superagent\cordis.patch.yml 里设置 `stateDir`
-#    （示例见 examples/profiles/desktop/cordis.patch.example.yml）
+# 3) 把编排插件挂到该 profile
+#    （这一步会在 profile 的 node_modules 下建 junction，并插入插件行）
+dsh plugin --profile superagent add "link:$PWD\packages\dsh-superagent"
 
-# 4) 启动服务并打开面板（一次性面板 URL 打印在 .artifacts\dsh-superagent-superagent-*.log）
+# 4) 填 stateDir（必须是 Windows 绝对路径）：
+#    编辑 <DSH_HOME>\profiles\superagent\cordis.patch.yml  →  config.stateDir
+#    脱敏示例：examples/profiles/desktop/cordis.patch.example.yml
+
+# 5) 用同样方式挂看板
+dsh plugin --profile superagent add "link:$PWD\packages\dsh-superagent-board"
+
+# 6) 启动并检查
 node packages\dsh-superagent\scripts\dsh-superagent.mjs status --profile superagent   # 0 正常 / 1 挂了 / 2 部分失败 / 3 等待初始化
 node packages\dsh-superagent\scripts\dsh-superagent.mjs start  --profile superagent
 ```
 
-Unix 形态的环境可以改走上游风格路径，见
-[`packages/dsh-superagent/SETUP.md`](packages/dsh-superagent/SETUP.md)。
+包内的 `packages/dsh-superagent/cordis.patch.yml`（bundle 层）负责插入插件行；它默认启用 GitHub 源，而飞书 / 本地会话 / 微信源是 **disabled** 的——用哪个就在你的 profile 里启用哪个。
+
+### 看板单独挂载
+
+```powershell
+dsh plugin --profile superagent add "link:$PWD\packages\dsh-superagent-board"
+```
+
+它会插入 `- id: superagent-board / name: 'dsh-superagent-board'` 并链接该包。之后侧栏出现 **Superagent** 入口，面板地址为 `/superagent-board/`；可用 `DSH_SUPERAGENT_BOARD_PORT` 固定端口。
+
+### 微信通道（iLink Bot）
+
+微信源走的是**个人微信账号的官方 iLink Bot 协议**——**不需要 CLI、不需要 app id、不需要 secret**：
+
+1. 在 profile 的 `cordis.patch.yml` 里启用 `dsh-superagent-weixin`，重启 `dsh-superagent`。
+2. 首次启动时，该源会向 iLink 索取**登录二维码**，并把图片（与一个 link 文件）写在 `<stateDir>` 下它的凭据文件旁边。
+3. 用**微信 8.0.69 或更新**扫该二维码并在手机上确认；登录态保存到 `<stateDir>/weixin-bot.json`。
+4. 再次登录：把 **Login credentials file** 指向另一个文件后重启。
+5. 把对方的 **wxid**（Trigger 里会显示）加入 **Policy** 下的 Weixin allowed list——否则来消息不会被接纳。
+6. 注意 iLink 的 **24 小时推送窗口**：只有在对方最后一次消息的 24 小时内，bot 才能主动推送。
+
+### 验证安装成功
+
+```powershell
+node packages\dsh-superagent\scripts\dsh-superagent.mjs status --profile superagent   # 期望 0
+```
+
+- 一次性**面板 URL**（带 token）打印在 `<stateDir>\.artifacts\dsh-superagent-superagent-*.log`。
+- DSH 侧栏出现 **Superagent** 入口与**看板** tab；看板页面在 `/superagent-board/`。
+- 编排器健康视图会报告各 Source（`github`、`feishu`、`local`、`weixin`、`weixin-poll`、`weixin-send`）。
+
+### 常见坑
+
+| 现象 | 原因 / 处理 |
+| --- | --- |
+| 插件拒绝启动 | 缺 `stateDir`——它必填且必须是**绝对**路径。 |
+| “同一目录只能一个宿主” | 一个 `stateDir` 同一时间只能被一个 DSH 宿主加载。 |
+| Windows 上控制台窗口闪 | 本发布已用 `windowsHide: true` 修掉；若仍闪，说明跑的是上游构建。 |
+| worker 不理会 `blockedCommands` | Windows 已知限制——worker shim 是 `#!/bin/sh` 脚本。请用专用 OS 账户 + agent 自己的 GitHub 账户。 |
+| 改错 profile 导致宿主起不来 | 用同目录的 `cordis.patch.yml.bak-*` 恢复，或删掉你加的 `insert` 行；最坏情况删掉该 profile 目录重建。 |
+| junction 指向不存在 | junction 目标必须存在且是本地路径——别用网络盘。 |
 
 ## 配置参考
 
@@ -148,35 +219,29 @@ Unix 形态的环境可以改走上游风格路径，见
 | 插件挂载、`stateDir`、心跳、项目、通道 | `<DSH_HOME>\profiles\<profile>\cordis.patch.yml` | [`examples/profiles/desktop/cordis.patch.example.yml`](examples/profiles/desktop/cordis.patch.example.yml) |
 | 准入表、accept 模式、主动规则 | 编排器 Policy（Settings schemas / Source 卡片） | [`examples/policy.admission.example.md`](examples/policy.admission.example.md) |
 | 执行器环境变量 | 每个 Assignment 设置 | `DSH_SUPERAGENT_DIR`、`DSH_SUPERAGENT_NAME`、`DSH_SUPERAGENT_TICKET`、`DSH_SUPERAGENT_BLOCKED_COMMANDS` |
-| 心跳（主动跟进） | 插件 `config.heartbeat` | `enabled`、`intervalMinutes`、`activeFrom`、`activeTo`、`brief` |
+| 心跳 | 插件 `config.heartbeat` | `enabled`、`intervalMinutes`、`activeFrom`、`activeTo`、`brief` |
 
-> Windows 注意：`blockedCommands` 在 Windows 上**对 worker 不生效**（worker shim 是 `#!/bin/sh` 脚本）。若命令隔离重要，请用 agent 自己的 GitHub 账户与专用 OS 账户。
+> Windows 注意：`blockedCommands` 在 Windows 上**对 worker 不生效**。若命令隔离重要，请用 agent 自己的 GitHub 账户与专用 OS 账户。
 
 ## 技能（Skills）
 
-编排器可以搭配**任意 DSH 技能库**使用——它不自带、也不要求某一套特定技能；把你的 DSH profile 指向你已经在用的技能即可。
-
-## 看板与 MCP 工具
-
-- **看板**（`packages/dsh-superagent-board`）：把宿主名册与编排器的 `board.json` 合并渲染，显示团队卡片与分组工单，并提供 stop / retry / unfocus（内联确认）。它会把 `worker-*` 会话从侧栏隐藏（两层、fail-open）。
-- **Engine 命令**（主会话与看板使用）：`candidate`、`decide`、`attach`、`requestStatus`、`note`、`reply`、`stopTicket`、`retryTicket`、`reevaluate`、`unsubscribe`、`dismiss`、`receive`、`bindThread`、`threadClosed`、`evaluateDue`、`policyChanged`，以及执行器侧的 `assignmentStarted`、`inputsRead`、`turnEnded`、`deliveryFailed`、`report`、`markUnrelated`、`followForContext`、`handback`、`assignmentInterrupted`。
-- **同类 DSH 插件**（不在本仓库内）：例如规范检索、产出文件读取等 MCP 工具提供者，可与它并列挂载。
+编排器可搭配**任意 DSH 技能库**使用——它不自带、也不要求某套特定技能；把你的 DSH profile 指向你已经在用的技能即可。
 
 ## 开发
 
 ```powershell
-pnpm --filter dsh-superagent check        # typecheck + vitest + build
+pnpm --filter dsh-superagent check
 pnpm --filter dsh-superagent-board typecheck
 pnpm --filter dsh-superagent-board test
 pnpm --filter dsh-superagent-board smoke
 ```
 
 部分上游测试在 Windows 上受环境限制（symlink、`chmod`、基于 tmux 的 service-script spec）而按构造失败——见
-[`packages/dsh-superagent/WINDOWS-ADAPT.md`](packages/dsh-superagent/WINDOWS-ADAPT.md) 的已知限制。
+[`packages/dsh-superagent/WINDOWS-ADAPT.md`](packages/dsh-superagent/WINDOWS-ADAPT.md)。
 
 ## 免责与许可
 
-- **研究原型，仅供参考。** 可能仍有 bug，代码风格与工程实践可能不一致。它为发布做过改造，与任何内部版本都不完全一致。
-- **不是 DeepSeek 官方产品。** DeepSeek Harness 本身是另一个产品，**不**包含在本仓库里；这里只有两个插件与其文档。
-- **截图为虚构数据。** 所有截图使用虚构的队友、工单与项目。
-- 许可：两个包均为 **MIT**——见 [`LICENSE`](LICENSE)。第三方依赖各自带自己的许可（见各包 manifest）。
+- **研究原型，仅供参考。** 可能仍有 bug，代码风格与工程实践可能不一致。与任何内部版本都不完全一致。
+- **不是 DeepSeek 官方产品。** DeepSeek Harness 是另一个产品，**不**包含在本仓库里。
+- **截图数据说明。** 看板截图为虚构数据；微信截图是真实对话，已裁剪并脱敏。
+- 许可：两个包均为 **MIT**——见 [`LICENSE`](LICENSE)。第三方依赖各自带自己的许可。
