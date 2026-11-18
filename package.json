@@ -1,12 +1,12 @@
 {
   "name": "dsh-superagent-release",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "private": true,
   "license": "MIT",
   "description": "Release snapshot of the dsh-superagent orchestration system: the orchestrator plugin and the board panel plugin, packaged together for review and deployment on DeepSeek Harness 0.2+.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/HiSeax/dsh-superagent-prototype.git"
+    "url": "https://github.com/HiSeax/dsh-superagent.git"
   },
   "workspaces": [
     "packages/*"
