@@ -2,11 +2,13 @@
 /**
  * Capture the full-window "DSH Harness + Superagent" demo composition.
  *
- * The window is assembled from three columns:
- *   - left   (~20%)  a DSH-style sidebar: new-session button, projects, recent demo sessions, plugins;
- *   - centre (~50%)  a dispatcher conversation: one user instruction bubble + one rich-text receipt bubble;
- *   - right  (~30%)  the **real** board panel, loaded from this same demo origin in an iframe
- *                    (teammate cards, edges and ticket groups), compacted with injected CSS.
+ * The window is assembled as the real DSH three-column shell:
+ *   - left   (280px)  DSH sidebar: deepseek/HARNESS lockup, new-session pill, 插件/Superagent/
+ *                     自动化任务/更多 nav, 工作区 tree (demo projects) and neutral demo footer;
+ *   - centre (~50%)   DSH conversation: one user instruction bubble + one rich-text receipt bubble,
+ *                     a thin session title row and a bottom composer;
+ *   - right  (~30%)   the real DSH Superagent panel head (title, search, 打开主 Session, six tabs)
+ *                     above the **real** board, loaded from this demo origin in an iframe.
  *
  * Why a shell page: this repository ships the board panel and the orchestrator plugin, not a runnable
  * DSH Web UI fixture. Capturing the live host would mean touching the production port and real session
@@ -191,217 +193,143 @@ const HARNESS_HTML = `<!doctype html>
 <title>DSH Harness · Superagent（演示）</title>
 <style>
 :root {
-  --bg: #eef0f4;
-  --ink: #1d1d1f;
-  --muted: #6e6e73;
-  --faint: #96969c;
-  --line: rgba(0, 0, 0, .07);
-  --line-soft: rgba(0, 0, 0, .055);
-  --accent: #1a73e8;
+  --ink: #0f1115;
+  --muted: #61666b;
+  --faint: #81858c;
+  --time: #b3b3b8;
+  --line: rgba(15, 17, 21, .08);
+  --hairline: rgba(15, 17, 21, .06);
+  --sidebar: #f7f7f8;
+  --row-active: #eceef0;
+  --accent: #3178ff;
   --green: #188038;
+  --red: #e5484d;
 }
 * { box-sizing: border-box; }
 html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
 body {
-  background: var(--bg);
+  background: #fff;
   color: var(--ink);
-  font: 13px/1.5 "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  font: 13px/1.5 -apple-system, "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 svg { display: block; }
-.topbar {
-  height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 0 16px;
-  background: rgba(252, 252, 253, .94);
-  border-bottom: 1px solid var(--line);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, .6) inset;
-  position: relative;
-  z-index: 10;
-}
-.brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.brand-mark {
-  width: 22px; height: 22px; border-radius: 7px; flex: none;
-  background: linear-gradient(145deg, #30353e, #131519);
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, .18);
-}
-.brand-mark svg { width: 12px; height: 12px; fill: #fff; }
-.brand-title { font-size: 13px; font-weight: 600; letter-spacing: .005em; white-space: nowrap; }
-.brand-title .demo { color: var(--faint); font-weight: 500; }
-.topbar-right { display: flex; align-items: center; gap: 9px; font-size: 10.5px; color: var(--muted); white-space: nowrap; }
-.live-dot { width: 6px; height: 6px; border-radius: 50%; background: #2e9e5b; box-shadow: 0 0 0 3px rgba(46, 158, 91, .12); }
-.top-tag { padding: 2px 7px; border-radius: 999px; background: #f1f2f4; border: 1px solid rgba(0, 0, 0, .05); color: #74747a; font-size: 10px; }
-.workspace { height: calc(100vh - 42px); display: grid; grid-template-columns: 20% 50% 30%; overflow: hidden; }
+.workspace { height: 100vh; display: grid; grid-template-columns: 280px 50% 1fr; overflow: hidden; }
+
+/* ---------------- left: DSH shell sidebar ---------------- */
 .sidebar {
   display: flex; flex-direction: column; min-width: 0;
-  padding: 14px 12px 12px;
-  background: linear-gradient(180deg, #f9fafc 0%, #f2f3f6 100%);
-  border-right: 1px solid var(--line);
+  padding: 12px 10px 10px;
+  background: var(--sidebar);
+  border-right: 1px solid var(--hairline);
   overflow: hidden;
 }
+.side-head { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 4px; }
+.whale { width: 23px; height: 23px; flex: none; color: #111827; }
+.logo-text { font-size: 17px; font-weight: 700; letter-spacing: -.03em; color: #101418; }
+.logo-badge {
+  padding: 3px 5px; border-radius: 4px;
+  background: #101418; color: #fff;
+  font-size: 8px; font-weight: 600; letter-spacing: .12em; line-height: 1;
+  transform: translateY(1px);
+}
+.collapse { margin-left: auto; width: 16px; height: 16px; color: #8a8a90; flex: none; }
 .new-session {
   display: flex; align-items: center; justify-content: center; gap: 6px;
-  width: 100%; height: 34px; border: 0; border-radius: 9px;
-  background: linear-gradient(180deg, #2f80ed, #1a73e8);
-  color: #fff; font: inherit; font-size: 12.5px; font-weight: 600;
-  box-shadow: 0 1px 2px rgba(26, 115, 232, .3), 0 5px 14px rgba(26, 115, 232, .16);
+  width: 100%; height: 38px; margin-top: 10px;
+  border: 1px solid rgba(15, 17, 21, .1); border-radius: 10px;
+  background: #fff; color: var(--ink);
+  font: inherit; font-size: 13px;
 }
-.new-session .plus { font-size: 16px; line-height: 1; font-weight: 400; margin-top: -1px; }
-.workspace-switch {
-  display: flex; align-items: center; gap: 9px;
-  margin-top: 12px; padding: 9px;
-  background: #fff; border: 1px solid rgba(0, 0, 0, .06); border-radius: 10px;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+.new-session svg { width: 15px; height: 15px; color: #6b6b72; }
+.nav { display: flex; flex-direction: column; gap: 2px; margin-top: 12px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  height: 34px; padding: 0 10px; border-radius: 8px;
+  font-size: 13px; color: #3c3c43;
 }
-.ws-mark {
-  width: 26px; height: 26px; border-radius: 8px; flex: none;
-  display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(145deg, #dbe8ff, #f0f6ff);
-  border: 1px solid #d3e2fb;
-  color: var(--accent); font-size: 11px; font-weight: 700;
-}
-.ws-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.ws-text strong { font-size: 12px; font-weight: 600; }
-.ws-text span { font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ws-chevron { color: #a1a1a6; font-size: 11px; }
-.side-scroll { flex: 1; overflow: hidden; margin-top: 2px; }
-.side-label {
+.nav-item svg { width: 16px; height: 16px; color: #5f6368; flex: none; }
+.nav-item.active { background: var(--row-active); color: var(--ink); font-weight: 500; }
+.ws-head {
   display: flex; align-items: center; justify-content: space-between;
-  margin: 15px 8px 5px;
-  font-size: 10.5px; font-weight: 600; letter-spacing: .06em; color: var(--faint);
+  margin: 18px 6px 4px;
+  font-size: 11.5px; color: #9a9a9f;
 }
-.side-label .count { font-weight: 500; letter-spacing: 0; color: #b0b0b6; }
-.side-item {
+.ws-actions { display: flex; align-items: center; gap: 9px; color: #8a8a90; }
+.ws-actions svg { width: 15px; height: 15px; }
+.ws-tree { display: flex; flex-direction: column; }
+.ws-row {
   display: flex; align-items: center; gap: 8px;
-  height: 31px; padding: 0 8px; border-radius: 7px;
-  color: #3c3c43; font-size: 12px; white-space: nowrap;
+  height: 30px; padding: 0 8px; border-radius: 6px;
+  font-size: 13px; color: #3c3c43; white-space: nowrap;
 }
-.side-item.active {
-  background: #fff; color: var(--ink); font-weight: 550;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, .06), inset 0 0 0 1px rgba(0, 0, 0, .04);
-}
-.proj-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
-.proj-dot.blue { background: var(--accent); box-shadow: 0 0 0 3px rgba(26, 115, 232, .1); }
-.proj-dot.green { background: #2e9e5b; box-shadow: 0 0 0 3px rgba(46, 158, 91, .1); }
-.side-item .badge {
-  margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px;
-  border-radius: 9px; background: #ececf0; color: #74747a;
-  font-size: 10px; display: flex; align-items: center; justify-content: center;
-}
-.side-item .time { margin-left: auto; font-size: 10px; color: #a8a8ae; font-variant-numeric: tabular-nums; }
-.session-ico { width: 13px; height: 13px; border: 1.5px solid #b0b0b6; border-radius: 4px; position: relative; flex: none; }
-.session-ico::after { content: ""; position: absolute; left: 3.5px; top: 3.5px; width: 3px; height: 3px; border-radius: 50%; background: #b0b0b6; }
-.side-item.active .session-ico { border-color: var(--accent); }
-.side-item.active .session-ico::after { background: var(--accent); }
-.plug-ico {
-  width: 18px; height: 18px; border-radius: 5px; flex: none;
-  display: flex; align-items: center; justify-content: center;
-  background: #e8f0fe; border: 1px solid #d7e5fd; color: var(--accent);
-  font-size: 10px; font-weight: 700;
-}
-.plug-ico.alt { background: #f3ecff; border-color: #e9defb; color: #7b4bd8; }
-.on-dot { margin-left: auto; width: 6px; height: 6px; border-radius: 50%; background: #2e9e5b; box-shadow: 0 0 0 3px rgba(46, 158, 91, .12); }
-.skill-ico { width: 14px; height: 14px; border: 1.3px solid #b0b0b6; border-radius: 4px; position: relative; flex: none; }
-.skill-ico::after { content: ""; position: absolute; left: 4px; top: 3px; width: 4px; height: 4px; border-radius: 1px; background: #b0b0b6; transform: rotate(45deg); }
-.mcp-ico { width: 14px; height: 14px; border: 1.3px solid #b0b0b6; border-radius: 50%; position: relative; flex: none; }
-.mcp-ico::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: #b0b0b6; }
-.side-item .state-text { margin-left: auto; font-size: 9.5px; color: #a8a8ae; }
-.team-mini {
-  margin: 2px 4px 0; padding: 9px 10px;
-  background: #fff; border: 1px solid rgba(0, 0, 0, .06); border-radius: 10px;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
-}
-.team-avatars { display: flex; align-items: center; }
-.mini-av {
-  width: 22px; height: 22px; margin-left: -6px;
-  border: 2px solid #fff; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  color: #fff; font-size: 9px; font-weight: 600;
-}
-.mini-av:first-child { margin-left: 0; }
-.mini-av.blue { background: #5b8def; }
-.mini-av.violet { background: #7e6bd6; }
-.mini-av.teal { background: #3f9b8a; }
-.mini-av.orange { background: #c47a3d; }
-.mini-av.rose { background: #b65c74; }
-.team-mini-text { display: flex; flex-direction: column; gap: 2px; margin-top: 7px; }
-.team-mini-text strong { font-size: 11px; font-weight: 600; }
-.team-mini-text span { display: flex; align-items: center; gap: 5px; font-size: 9.5px; color: #8e8e93; }
-.team-mini-text .on-dot { margin-left: 0; width: 5px; height: 5px; box-shadow: none; }
+.ws-row svg { width: 15px; height: 15px; flex: none; }
+.ws-row.indent { padding-left: 32px; color: var(--ink); }
+.ws-row .time { margin-left: auto; font-size: 11px; color: var(--time); font-variant-numeric: tabular-nums; }
 .side-foot {
-  display: flex; align-items: center; gap: 9px;
-  margin-top: 8px; padding: 11px 6px 2px;
-  border-top: 1px solid rgba(0, 0, 0, .06);
+  display: flex; align-items: center; gap: 8px;
+  margin-top: auto; padding: 8px 4px 2px;
+  border-top: 1px solid var(--hairline);
 }
-.neutral-avatar {
-  width: 26px; height: 26px; border-radius: 50%; flex: none;
+.avatar-neutral {
+  width: 24px; height: 24px; border-radius: 50%; flex: none;
   display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(145deg, #e1e5ec, #c7cdd7);
-  color: #5c6472; font-size: 10.5px; font-weight: 700;
+  background: linear-gradient(145deg, #dfe3ea, #c6ccd8);
+  color: #5c6472; font-size: 10px; font-weight: 700;
 }
-.foot-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.foot-text { display: flex; flex-direction: column; line-height: 1.3; min-width: 0; }
 .foot-text strong { font-size: 11px; font-weight: 600; }
-.foot-text span { font-size: 10px; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.foot-text span { font-size: 9.5px; color: #9a9a9f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------------- middle: DSH conversation ---------------- */
 .chat {
   display: flex; flex-direction: column; min-width: 0;
-  background: linear-gradient(180deg, #ffffff 0%, #fdfdff 60%, #fafbfc 100%);
-  border-right: 1px solid var(--line);
+  background: #fff;
+  border-right: 1px solid var(--hairline);
   overflow: hidden;
 }
 .chat-head {
-  flex: none; height: 58px;
-  display: flex; align-items: center; gap: 11px;
-  padding: 0 22px;
-  border-bottom: 1px solid rgba(0, 0, 0, .06);
-  background: rgba(255, 255, 255, .82);
+  flex: none; height: 46px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--hairline);
+  background: #fff;
 }
-.agent-badge {
-  width: 32px; height: 32px; border-radius: 10px; flex: none;
-  display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(145deg, #2c323b, #14171c);
-  box-shadow: 0 2px 6px rgba(15, 20, 30, .18);
-}
-.agent-badge svg { width: 15px; height: 15px; fill: #fff; }
 .chat-title { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.chat-title strong { font-size: 13.5px; font-weight: 600; }
+.chat-title strong { font-size: 13px; font-weight: 600; }
 .chat-title span { display: flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--muted); }
 .pulse { width: 6px; height: 6px; border-radius: 50%; background: #2e9e5b; box-shadow: 0 0 0 3px rgba(46, 158, 91, .12); }
-.chat-chip { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: #f3f4f6; border: 1px solid rgba(0, 0, 0, .05); color: #8a8a90; font-size: 10px; }
-.chat-body { flex: 1; overflow: hidden; padding: 22px 28px 8px; display: flex; flex-direction: column; }
-.chat-thread { width: 100%; max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+.chat-chip { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: #f2f3f5; border: 1px solid rgba(15, 17, 21, .05); color: #8a8a90; font-size: 10px; }
+.chat-body { flex: 1; overflow: hidden; padding: 20px 28px 8px; display: flex; flex-direction: column; }
+.chat-thread { width: 100%; max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
 .day-divider { display: flex; align-items: center; gap: 10px; color: #a8a8ae; font-size: 10.5px; }
-.day-divider::before, .day-divider::after { content: ""; height: 1px; flex: 1; background: var(--line-soft); }
+.day-divider::before, .day-divider::after { content: ""; height: 1px; flex: 1; background: var(--hairline); }
 .msg.user { align-self: flex-end; max-width: 78%; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
 .bubble.user {
   padding: 11px 15px; border-radius: 14px 14px 4px 14px;
-  background: linear-gradient(180deg, #2f80ed, #1a73e8);
+  background: linear-gradient(180deg, #3d84ff, #3178ff);
   color: #fff; font-size: 13px; line-height: 1.65;
-  box-shadow: 0 4px 14px rgba(26, 115, 232, .18);
+  box-shadow: 0 4px 14px rgba(49, 120, 255, .16);
 }
 .bubble.user code { background: rgba(255, 255, 255, .2); color: #fff; border-radius: 4px; padding: 1px 4px; font-size: 11.5px; }
 .bubble.user b, .bubble.user code { white-space: nowrap; }
 .msg-meta { font-size: 10px; color: #a1a1a6; padding-right: 3px; }
-.msg.agent { display: flex; align-items: flex-start; gap: 10px; max-width: 90%; }
+.msg.agent { display: flex; align-items: flex-start; gap: 10px; max-width: 92%; }
 .avatar.small {
   width: 28px; height: 28px; border-radius: 50%; flex: none; margin-top: 2px;
   display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(145deg, #eaf2ff, #f9fbff);
-  border: 1px solid #d6e4fb; color: var(--accent);
-  font-size: 11px; font-weight: 700;
+  background: #f1f4f9; border: 1px solid #e3e8f0;
+  color: #4b5b72; font-size: 11px; font-weight: 700;
 }
 .msg-main { min-width: 0; }
 .msg-name { display: flex; align-items: baseline; gap: 7px; margin: 0 0 5px 2px; font-size: 10.5px; color: #8e8e93; }
 .msg-time { color: #b3b3b8; font-size: 9.5px; }
 .bubble.agent {
   padding: 15px 17px 14px;
-  background: #fff; border: 1px solid rgba(0, 0, 0, .07);
+  background: #fff; border: 1px solid #e8e8ec;
   border-radius: 14px 14px 14px 4px;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 10px 30px rgba(16, 24, 40, .045);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 10px 30px rgba(16, 24, 40, .04);
 }
 .bubble.agent h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 7px; font-size: 15px; font-weight: 600; }
 .check-badge {
@@ -430,11 +358,11 @@ svg { display: block; }
 }
 .code-block .prompt { color: #8ab4f8; }
 .code-block .ok { color: #81c995; }
-.receipt-foot { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 10px; border-top: 1px solid rgba(0, 0, 0, .06); }
+.receipt-foot { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 10px; border-top: 1px solid rgba(15, 17, 21, .06); }
 .pill {
   display: inline-flex; align-items: center; height: 21px; padding: 0 9px;
   border-radius: 999px; background: #f3f4f6; color: #5f6368;
-  border: 1px solid rgba(0, 0, 0, .04); font-size: 10.5px;
+  border: 1px solid rgba(15, 17, 21, .04); font-size: 10.5px;
 }
 .pill.ok { background: #e6f4ea; border-color: #ceead6; color: #137333; font-weight: 600; }
 .pill.mono { font-variant-numeric: tabular-nums; }
@@ -443,8 +371,7 @@ svg { display: block; }
 .worker-note {
   display: flex; align-items: center; gap: 9px;
   padding: 9px 11px;
-  background: #f7f9fc; border: 1px solid rgba(26, 115, 232, .13); border-radius: 10px;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, .03);
+  background: #f8f9fb; border: 1px solid rgba(49, 120, 255, .13); border-radius: 10px;
 }
 .worker-avatar {
   width: 24px; height: 24px; border-radius: 50%; flex: none;
@@ -455,7 +382,7 @@ svg { display: block; }
 .worker-line { display: flex; align-items: center; gap: 4px; font-size: 10.5px; color: #5f6368; }
 .worker-text strong { font-size: 11px; font-weight: 600; color: var(--ink); }
 .worker-text b {
-  padding: 0 4px; border: 1px solid rgba(0, 0, 0, .07); border-radius: 4px;
+  padding: 0 4px; border: 1px solid rgba(15, 17, 21, .07); border-radius: 4px;
   background: #fff; color: #3c4043;
   font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
   font-size: 10px; white-space: nowrap;
@@ -472,8 +399,8 @@ svg { display: block; }
 .composer-box {
   height: 44px; display: flex; align-items: center; gap: 9px;
   padding: 0 9px 0 11px;
-  background: #fff; border: 1px solid rgba(0, 0, 0, .09); border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 6px 18px rgba(16, 24, 40, .05);
+  background: #fff; border: 1px solid rgba(15, 17, 21, .1); border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 6px 18px rgba(16, 24, 40, .04);
 }
 .composer-plus {
   width: 20px; height: 20px; border-radius: 50%;
@@ -485,51 +412,56 @@ svg { display: block; }
   width: 28px; height: 28px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   background: var(--accent); color: #fff; font-size: 13px; font-weight: 600;
-  box-shadow: 0 1px 3px rgba(26, 115, 232, .3);
+  box-shadow: 0 1px 3px rgba(49, 120, 255, .3);
 }
 .composer-hint { margin-top: 7px; text-align: center; font-size: 9.5px; color: #b3b3b8; }
-.board-panel { display: flex; flex-direction: column; min-width: 0; background: #eef1f5; overflow: hidden; }
-.board-head {
-  flex: none; height: 46px;
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 0 14px;
-  background: rgba(248, 249, 251, .88);
-  border-bottom: 1px solid rgba(0, 0, 0, .06);
+
+/* ---------------- right: real DSH Superagent panel ---------------- */
+.panel { display: flex; flex-direction: column; min-width: 0; background: #fff; overflow: hidden; }
+.panel-head { flex: none; padding: 0 12px; }
+.panel-top { display: flex; align-items: center; gap: 7px; height: 58px; }
+.panel-title { flex: none; font-size: 14px; font-weight: 600; letter-spacing: -.01em; }
+.panel-search {
+  flex: 1; min-width: 0; max-width: 300px; height: 30px;
+  display: flex; align-items: center; gap: 5px;
+  margin-left: auto; padding: 0 8px;
+  border: 1px solid #d6d6d6; border-radius: 8px; background: #fff;
+  color: #b3b3b8; font-size: 10.5px; white-space: nowrap; overflow: hidden;
 }
-.board-head-left { display: flex; align-items: center; gap: 7px; min-width: 0; }
-.board-head strong { font-size: 12px; font-weight: 600; white-space: nowrap; }
-.live-pill {
-  display: inline-flex; align-items: center; gap: 4px;
-  height: 18px; padding: 0 7px;
-  border-radius: 999px; background: #e6f4ea; border: 1px solid #ceead6;
-  color: #137333; font-size: 9.5px; font-weight: 600;
+.panel-search svg { width: 13px; height: 13px; color: #8a8a90; flex: none; }
+.panel-search span { overflow: hidden; text-overflow: ellipsis; }
+.help { width: 18px; height: 18px; color: #5f6368; flex: none; }
+.open-session {
+  flex: none; display: flex; align-items: center; gap: 5px;
+  height: 30px; padding: 0 9px;
+  border: 1px solid rgba(15, 17, 21, .13); border-radius: 8px;
+  background: #fff; color: var(--ink);
+  font: inherit; font-size: 11.5px; white-space: nowrap;
 }
-.live-pill i { width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
-.board-head-sub { font-size: 9.5px; color: var(--faint); white-space: nowrap; }
-.board-frame-wrap {
-  flex: 1; margin: 9px;
-  border-radius: 11px; overflow: hidden;
-  background: #fff; border: 1px solid rgba(0, 0, 0, .08);
-  box-shadow: 0 2px 6px rgba(16, 24, 40, .05), 0 16px 40px rgba(16, 24, 40, .06);
-}
-.board-frame-wrap iframe { display: block; width: 100%; height: 100%; border: 0; background: #f5f5f7; }
+.open-session svg { width: 12px; height: 12px; color: #5f6368; flex: none; }
+.tabs { display: flex; align-items: flex-end; gap: 24px; height: 34px; border-bottom: 1px solid #e0e0e0; }
+.tab { position: relative; padding-bottom: 9px; font-size: 12.5px; color: var(--faint); white-space: nowrap; }
+.tab.active { color: var(--ink); font-weight: 600; }
+.tab.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 1px; background: var(--ink); }
+.board-wrap { flex: 1; min-height: 0; padding: 10px 10px 12px; overflow: hidden; }
+.board-wrap iframe { display: block; width: 100%; height: 100%; border: 0; background: #f7f8fa; }
 </style>
 <style id="board-compact-style" media="not all">
-/* Compact the real board for a ~410px-wide side panel: same DOM, same edges, tighter geometry. */
+/* Compact the real board for a ~420px-wide side panel: same DOM, same edges, tighter geometry. */
 html, body { overflow: hidden !important; background: #f7f8fa !important; }
 body { font-size: 11px !important; }
-main { max-width: none !important; margin: 0 !important; padding: 10px 10px 12px !important; }
+main { max-width: none !important; margin: 0 !important; padding: 12px 12px 14px !important; }
 .board-summary { display: none !important; }
 section { margin-bottom: 12px !important; }
 section > h2 { margin: 0 0 6px !important; font-size: 11px !important; font-weight: 600 !important; color: #74747a !important; }
 #team.team-tree {
   display: flex !important; align-items: center !important; justify-content: space-between !important;
-  gap: 18px !important; padding: 0 2px !important; min-height: 0 !important;
+  gap: 20px !important; padding: 0 2px !important; min-height: 0 !important;
 }
-#team.team-tree .team-lead, #team.team-tree .team-members { flex: 0 0 164px !important; width: 164px !important; }
-.team-members { display: flex !important; flex-direction: column !important; gap: 7px !important; width: 164px !important; padding: 0 !important; }
+#team.team-tree .team-lead, #team.team-tree .team-members { flex: 0 0 168px !important; width: 168px !important; }
+.team-members { display: flex !important; flex-direction: column !important; gap: 7px !important; width: 168px !important; padding: 0 !important; }
 .card, .card.card-lead {
-  width: 164px !important; min-height: 92px !important;
+  width: 168px !important; min-height: 92px !important;
   padding: 7px 9px !important; gap: 1px !important;
   border-radius: 9px !important;
 }
@@ -543,7 +475,6 @@ section > h2 { margin: 0 0 6px !important; font-size: 11px !important; font-weig
 .member-meta .state-chip { padding: 0 4px !important; font-size: 9px !important; line-height: 13px !important; border-radius: 4px !important; }
 .member-meta .dot { width: 5px !important; height: 5px !important; }
 .team-edges .edge { stroke-width: 1.4px !important; }
-.team-edges .edge-dot { r: 1.5px; }
 .ticket-groups { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 8px !important; overflow: visible !important; }
 .group { min-width: 0 !important; margin-bottom: 0 !important; }
 .group h3 { margin: 0 0 5px !important; padding: 4px 7px !important; border-radius: 6px !important; font-size: 10px !important; }
@@ -564,73 +495,101 @@ main > section:last-of-type { display: none !important; }
 </style>
 </head>
 <body>
-<header class="topbar">
-  <div class="brand">
-    <span class="brand-mark">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.35 7.05L21.6 11.4l-7.25 2.35L12 21l-2.35-7.25L2.4 11.4l7.25-2.35z"/></svg>
-    </span>
-    <span class="brand-title">DSH Harness · Superagent<span class="demo">（演示）</span></span>
-  </div>
-  <div class="topbar-right">
-    <span class="live-dot"></span>
-    <span>本地隔离演示实例</span>
-    <span class="top-tag">虚构数据</span>
-  </div>
-</header>
-
-<main class="workspace">
+<div class="workspace">
   <aside class="sidebar">
-    <div class="new-session"><span class="plus">+</span><span>新会话</span></div>
-
-    <div class="workspace-switch">
-      <span class="ws-mark">D</span>
-      <div class="ws-text"><strong>演示工作区</strong><span>本地 · 隔离运行</span></div>
-      <span class="ws-chevron">⌄</span>
+    <div class="side-head">
+      <svg class="whale" viewBox="0 0 24 24" aria-hidden="true">
+        <path fill="currentColor" d="M21.2 6.4c-2.4-3.1-6.8-4.1-10.4-2.4C7.4 5.6 5.1 9.4 5.7 13.2c.2 1 .6 2 1.1 2.8-.3 1.2-1 2.2-2 2.9-.4.3-.3.9.2 1.1 2 .9 4.3.9 6.3.2.2.1.4.1.6.1 3.9.2 7.3-2.7 7.7-6.6.2-2.6-.7-5.2-2.4-7.3z"/>
+        <circle cx="10" cy="9.3" r="1.1" fill="#fff"/>
+      </svg>
+      <span class="logo-text">deepseek</span>
+      <span class="logo-badge">HARNESS</span>
+      <svg class="collapse" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.1">
+        <rect x="1.8" y="2.5" width="12.4" height="11" rx="1.6"/><path d="M5.6 2.5v11"/>
+      </svg>
     </div>
 
-    <div class="side-scroll">
-      <div class="side-label">项目 <span class="count">2</span></div>
-      <div class="side-item"><span class="proj-dot blue"></span><span>demo-widgets</span><span class="badge">2</span></div>
-      <div class="side-item"><span class="proj-dot green"></span><span>example-service</span><span class="badge">1</span></div>
+    <div class="new-session">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
+        <circle cx="8" cy="8" r="6.2"/><path d="M8 5.4v5.2M5.4 8h5.2" stroke-linecap="round"/>
+      </svg>
+      <span>新会话</span>
+    </div>
 
-      <div class="side-label">最近会话</div>
-      <div class="side-item active"><span class="session-ico"></span><span>demo-widgets</span><span class="time">14:18</span></div>
-      <div class="side-item"><span class="session-ico"></span><span>example-service</span><span class="time">13:42</span></div>
-      <div class="side-item"><span class="session-ico"></span><span>playground</span><span class="time">11:05</span></div>
-      <div class="side-item"><span class="session-ico"></span><span>scratch</span><span class="time">昨天</span></div>
-
-      <div class="side-label">插件</div>
-      <div class="side-item"><span class="plug-ico">S</span><span>Superagent 调度器</span><span class="on-dot"></span></div>
-      <div class="side-item"><span class="plug-ico alt">B</span><span>团队任务板</span><span class="on-dot"></span></div>
-
-      <div class="side-label">团队 <span class="count">5</span></div>
-      <div class="team-mini">
-        <div class="team-avatars">
-          <span class="mini-av blue">A</span><span class="mini-av violet">N</span><span class="mini-av teal">O</span><span class="mini-av orange">V</span><span class="mini-av rose">H</span>
-        </div>
-        <div class="team-mini-text"><strong>5 位 teammate</strong><span><i class="on-dot"></i> 3 位正在执行 · 看板已同步</span></div>
+    <div class="nav">
+      <div class="nav-item">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 2h4v4h4v4h-4v4H6v-4H2V6h4z"/>
+        </svg>
+        <span>插件</span>
       </div>
+      <div class="nav-item active">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.15" aria-hidden="true">
+          <path d="M8 1.8c-2.1 0-3.7 1.6-3.7 3.6 0 2.7 3.7 9 3.7 9s3.7-6.3 3.7-9c0-2-1.6-3.6-3.7-3.6z"/>
+          <circle cx="8" cy="5.3" r="1.25"/>
+        </svg>
+        <span>Superagent</span>
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
+          <circle cx="8" cy="8" r="6.2"/><path d="M8 4.7V8l2.2 1.4" stroke-linecap="round"/>
+        </svg>
+        <span>自动化任务</span>
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.15" aria-hidden="true">
+          <rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/>
+          <rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/>
+        </svg>
+        <span>更多</span>
+      </div>
+    </div>
 
-      <div class="side-label">技能</div>
-      <div class="side-item"><span class="skill-ico"></span><span>release-check</span><span class="state-text">内置</span></div>
-      <div class="side-item"><span class="skill-ico"></span><span>board-review</span><span class="state-text">内置</span></div>
+    <div class="ws-head">
+      <span>工作区</span>
+      <span class="ws-actions">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><circle cx="7" cy="7" r="4.4"/><path d="M10.3 10.3L14 14" stroke-linecap="round"/></svg>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M2 5h5M11 5h3M2 11h3M9 11h5" stroke-linecap="round"/><circle cx="9" cy="5" r="1.6"/><circle cx="7" cy="11" r="1.6"/></svg>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M2 4.5c0-.6.4-1 1-1h3l1.2 1.5H13c.6 0 1 .4 1 1V12c0 .6-.4 1-1 1H3c-.6 0-1-.4-1-1V4.5z"/><path d="M8 7v4M6 9h4" stroke-linecap="round"/></svg>
+      </span>
+    </div>
 
-      <div class="side-label">MCP 服务器</div>
-      <div class="side-item"><span class="mcp-ico"></span><span>demo-search</span><span class="on-dot"></span></div>
-      <div class="side-item"><span class="mcp-ico"></span><span>local-notes</span><span class="on-dot"></span></div>
+    <div class="ws-tree">
+      <div class="ws-row">
+        <svg viewBox="0 0 16 16" fill="none" stroke="#3178ff" stroke-width="1.2" aria-hidden="true"><path d="M2 4.5c0-.6.4-1 1-1h3l1.2 1.5H13c.6 0 1 .4 1 1V12c0 .6-.4 1-1 1H3c-.6 0-1-.4-1-1V4.5z"/></svg>
+        <span>demo-widgets</span>
+      </div>
+      <div class="ws-row indent"><span>新会话</span></div>
+      <div class="ws-row">
+        <svg viewBox="0 0 16 16" fill="none" stroke="#8a8a90" stroke-width="1.2" aria-hidden="true"><path d="M2 4.5c0-.6.4-1 1-1h3l1.2 1.5H13c.6 0 1 .4 1 1V12c0 .6-.4 1-1 1H3c-.6 0-1-.4-1-1V4.5z"/></svg>
+        <span>example-service</span>
+      </div>
+      <div class="ws-row">
+        <svg viewBox="0 0 16 16" fill="none" stroke="#8a8a90" stroke-width="1.2" aria-hidden="true"><path d="M2 4.5c0-.6.4-1 1-1h3l1.2 1.5H13c.6 0 1 .4 1 1V12c0 .6-.4 1-1 1H3c-.6 0-1-.4-1-1V4.5z"/></svg>
+        <span>playground</span>
+      </div>
+      <div class="ws-row">
+        <svg viewBox="0 0 16 16" fill="none" stroke="#8a8a90" stroke-width="1.2" aria-hidden="true"><path d="M2 4.5c0-.6.4-1 1-1h3l1.2 1.5H13c.6 0 1 .4 1 1V12c0 .6-.4 1-1 1H3c-.6 0-1-.4-1-1V4.5z"/></svg>
+        <span>scratch</span>
+      </div>
+      <div class="ws-row">
+        <svg viewBox="0 0 16 16" fill="none" stroke="#8a8a90" stroke-width="1.2" aria-hidden="true"><path d="M2 4.5c0-.6.4-1 1-1h3l1.2 1.5H13c.6 0 1 .4 1 1V12c0 .6-.4 1-1 1H3c-.6 0-1-.4-1-1V4.5z"/></svg>
+        <span>tmp</span>
+      </div>
+      <div class="ws-row">
+        <svg viewBox="0 0 16 16" fill="none" stroke="#8a8a90" stroke-width="1.2" aria-hidden="true"><path d="M2 4.5c0-.6.4-1 1-1h3l1.2 1.5H13c.6 0 1 .4 1 1V12c0 .6-.4 1-1 1H3c-.6 0-1-.4-1-1V4.5z"/></svg>
+        <span>未分组</span>
+      </div>
     </div>
 
     <div class="side-foot">
-      <span class="neutral-avatar">D</span>
-      <div class="foot-text"><strong>本地演示</strong><span>演示数据 · 不含真实账号</span></div>
+      <span class="avatar-neutral">D</span>
+      <div class="foot-text"><strong>本地演示</strong><span>演示数据·不含真实账号</span></div>
     </div>
   </aside>
 
   <section class="chat">
     <header class="chat-head">
-      <span class="agent-badge">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.35 7.05L21.6 11.4l-7.25 2.35L12 21l-2.35-7.25L2.4 11.4l7.25-2.35z"/></svg>
-      </span>
       <div class="chat-title">
         <strong>Superagent 调度器</strong>
         <span><i class="pulse"></i> dispatcher · 在线 · 已连接团队任务板</span>
@@ -695,24 +654,44 @@ main > section:last-of-type { display: none !important; }
     </footer>
   </section>
 
-  <section class="board-panel">
-    <header class="board-head">
-      <div class="board-head-left">
-        <strong>团队任务板</strong>
-        <span class="live-pill"><i></i>实时</span>
+  <section class="panel">
+    <header class="panel-head">
+      <div class="panel-top">
+        <div class="panel-title">Superagent</div>
+        <div class="panel-search">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><circle cx="7" cy="7" r="4.4"/><path d="M10.3 10.3L14 14" stroke-linecap="round"/></svg>
+          <span>搜索工单、线程、触发或链接</span>
+        </div>
+        <svg class="help" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
+          <circle cx="9" cy="9" r="7.2"/>
+          <path d="M7.2 6.9c.1-1 .9-1.7 1.9-1.6 1.1.1 1.9 1 1.8 2.1-.1 1.3-1.6 1.6-2.1 2.6l-.1.6" stroke-linecap="round"/>
+          <circle cx="9" cy="13" r=".7" fill="currentColor" stroke="none"/>
+        </svg>
+        <button class="open-session" type="button">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
+            <rect x="2.5" y="4" width="9" height="9" rx="1.4"/><path d="M9 2.5h4.5V7M13.5 2.5L7.8 8.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>打开主 Session</span>
+        </button>
       </div>
-      <span class="board-head-sub" id="board-count">5 位 teammate · 7 工单</span>
+      <div class="tabs">
+        <span class="tab active">概览</span>
+        <span class="tab">来源</span>
+        <span class="tab">触发</span>
+        <span class="tab">评估</span>
+        <span class="tab">执行</span>
+        <span class="tab">设置</span>
+      </div>
     </header>
-    <div class="board-frame-wrap">
+    <div class="board-wrap">
       <iframe id="board-frame" src="/superagent-board/" title="团队任务板（演示）"></iframe>
     </div>
   </section>
-</main>
+</div>
 
 <script>
 (function () {
   var frame = document.getElementById('board-frame')
-  var count = document.getElementById('board-count')
   var source = document.getElementById('board-compact-style')
   function decorate() {
     try {
@@ -727,9 +706,6 @@ main > section:last-of-type { display: none !important; }
         }
         if (style.textContent !== source.textContent) style.textContent = source.textContent
       }
-      var members = doc.querySelectorAll('.team-members .card').length
-      var tickets = doc.querySelectorAll('.ticket-row').length
-      if (count && members > 0) count.textContent = members + ' 位 teammate · ' + tickets + ' 工单'
       frame.contentWindow.dispatchEvent(new Event('resize'))
       return true
     } catch (error) {
@@ -747,7 +723,7 @@ main > section:last-of-type { display: none !important; }
 })()
 </script>
 </body>
-</html>`
+</html></html>`
 
 /* ------------------------------------------------------------------ *
  * Minimal CDP client over the DevTools WebSocket.                    *
