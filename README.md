@@ -248,6 +248,7 @@ node packages\dsh-superagent\scripts\dsh-superagent.mjs status --profile superag
 | worker 不理会 `blockedCommands` | Windows 已知限制——worker shim 是 `#!/bin/sh` 脚本。请用专用 OS 账户 + agent 自己的 GitHub 账户。 |
 | 改错 profile 导致宿主起不来 | 用同目录的 `cordis.patch.yml.bak-*` 恢复，或删掉你加的 `insert` 行；最坏情况删掉该 profile 目录重建。 |
 | junction 指向不存在 | junction 目标必须存在且是本地路径——别用网络盘。 |
+| 复制的 state 目录一直 `setupPending` / `agentCliSignedOut`；副本的 `/board.json` 返回另一个部署的数据 | 见 **[docs/ops-notes.md](docs/ops-notes.md)**——复制来的设置仍指向原 `worker-bin` 里的 CLI 垫片；`DSH_SUPERAGENT_BOARD_PORT` 同时被编排器与看板插件读取。 |
 
 ## 配置参考
 

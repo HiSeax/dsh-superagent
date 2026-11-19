@@ -334,6 +334,7 @@ node packages\dsh-superagent\scripts\dsh-superagent.mjs status --profile superag
 | `blockedCommands` ignored for workers | Known Windows limitation — the worker shim is a `#!/bin/sh` script. Use a dedicated OS account and the agent's own GitHub account. |
 | Editing the wrong profile breaks the host | Restore from the sibling `cordis.patch.yml.bak-*`, or remove the `insert` rows you added; worst case delete the profile directory and recreate it. |
 | Junction points nowhere | The junction target must exist and be a local path — do not use a network drive. |
+| A copied state dir stays `setupPending` / `agentCliSignedOut`; a replica answers `/board.json` with another deployment's data | See **[docs/ops-notes.md](docs/ops-notes.md)** — the copied settings still name the original `worker-bin` CLI shim, and `DSH_SUPERAGENT_BOARD_PORT` is read by both the orchestrator and the board panel. |
 
 ## Configuration reference
 
