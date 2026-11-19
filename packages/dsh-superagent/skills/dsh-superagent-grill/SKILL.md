@@ -17,6 +17,17 @@ This skill belongs to the **main Session** of dsh-superagent — the one that ta
 - **Facts are your job, decisions are the person's.** When a frontier question needs a fact from the environment (files, tools, logs, docs, code), look it up — a subagent, `read`, `grep`, a shell command — and never ask the person something you could find out yourself. Do not block on it: only the questions downstream of that lookup wait; ask the rest of the frontier now.
 - **Stop condition.** The session is done when the frontier is empty: every branch visited, nothing silently assumed. Do not act on the subject until the person confirms the shared understanding.
 
+## Only when a person must decide
+
+The card is for decisions only the person can make. Never open it for:
+
+- **facts you can find yourself** — a file, a log, a tool result, the repository, a subagent; look them up instead of asking;
+- **work already authorized** — never ask permission for it, never ask to confirm routine next steps;
+- **implementation choices inside an authorized scope** — the worker owns those; ask only when the choice changes what the person gets;
+- **a decision already given** — do not re-ask it, and do not ping about unchanged status.
+
+Outside an explicit grilling session ("grill me", "拷问我"), do not open the card at all: ordinary conversation, progress and results travel as messages. One round of grilling is **one** call carrying every question of that round in its `questions[]` array — not one card per question, and never a card as a substitute for doing the work.
+
 ## Ask with the tool, not prose
 
 Ask each round by calling the `ask_user_question` tool. Do not write the questions as chat text and wait for a typed reply: the tool renders the question card and returns the answers.
