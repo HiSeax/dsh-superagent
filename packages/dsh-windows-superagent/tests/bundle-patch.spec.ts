@@ -67,7 +67,8 @@ it('defines the router preset the main Session runs under: the worker\'s 5-secon
     '@deepseek-ai/dsh-compaction-tool-result-pruner']) expect(named(plugins, name).length, name).toBeGreaterThan(0)
   expect(named(plugins, '@deepseek-ai/dsh-tool-fs')).toEqual([{ write: false, edit: false }])
   // The main Session may ask a person: the official ask_user_question card carries the grill rounds.
-  expect(named(plugins, '@deepseek-ai/dsh-tool-ask-user')).toEqual([undefined])
+  // Timed, so a card nobody answers releases the turn after 100 s instead of locking it (and the Source inbox) forever.
+  expect(named(plugins, '@deepseek-ai/dsh-tool-ask-user')).toEqual([{ mode: 'timed', timeout: 100 }])
   const names = plugins.map(row => row.name)
   for (const name of ['@deepseek-ai/dsh-tool-subagent', '@deepseek-ai/dsh-tool-subagent-control', '@deepseek-ai/dsh-tool-web', '@deepseek-ai/dsh-tool-fs-search',
     '@deepseek-ai/dsh-tool-todo', '@deepseek-ai/dsh-tool-present', '@deepseek-ai/dsh-plan-mode',
@@ -82,4 +83,9 @@ it('defines legacy presets for backward compatibility with sessions created befo
   expect(legacyWorker).toBeDefined()
   expect(legacyRouter.order).toBe(93)
   expect(legacyWorker.order).toBe(92)
+  // The alias main Session keeps the card, and it waits no longer than the router preset's does.
+  const legacyNamed = (preset: { plugins: Row[] }, name: string) =>
+    flat(preset.plugins).filter(row => row.name === name).map(row => row.config)
+  expect(legacyNamed(legacyRouter, '@deepseek-ai/dsh-tool-ask-user')).toEqual([{ mode: 'timed', timeout: 100 }])
+  expect(legacyNamed(legacyWorker, '@deepseek-ai/dsh-tool-ask-user')).toEqual([])
 })

@@ -247,16 +247,29 @@ export class DshExecutor implements Executor {
   private async prepareDirectory(ticket: Ticket): Promise<void> {
     const directory = ticket.execution?.directory ?? ''
     await mkdir(dirname(directory), { recursive: true })
-    const command = this.host.store.settings().executor.prepare.trim()
+    const settings = this.host.store.settings()
+    const command = settings.executor.prepare.trim()
     const env = Object.fromEntries(this.host.environment(ticket).map(variable => [variable.key, variable.value]))
     // Enforce a timeout so a hung prepare command (such as on a credential prompt) fails the ticket instead of holding a worker slot indefinitely.
     const signal = AbortSignal.any([this.host.lifetime, AbortSignal.timeout(PREPARE_TIMEOUT_MS)])
-    if (command) await runAsWorker(this.host.context.subprocess, ['sh', '-c', command], dirname(directory), signal, env)
-      .catch(async (error: unknown) => {
-        // Remove an empty directory left by a failed prepare command so a later retry does not treat it as already prepared.
-        await rmdir(directory).catch(() => { /* Absent, or holding what the command wrote, which the output explains. */ })
-        throw new PrepareFailed(`The prepare command failed: ${error instanceof Error ? error.message : String(error)}`)
+    if (command) {
+      await runAsWorker(this.host.context.subprocess, ['sh', '-c', command], dirname(directory), signal, env)
+        .catch(async (error: unknown) => {
+          // Remove an empty directory left by a failed prepare command so a later retry does not treat it as already prepared.
+          await rmdir(directory).catch(() => { /* Absent, or holding what the command wrote, which the output explains. */ })
+          throw new PrepareFailed(`The prepare command failed: ${error instanceof Error ? error.message : String(error)}`)
+        })
+    } else {
+      // Default local prepare: branch the ticket's worktree off the deployment's local repository, so a deployment without GitHub still works.
+      const root = settings.executor.repositoryPath.trim() || join(this.host.machine.stateDir, 'workspace', 'repo')
+      const branch = ticket.execution?.name ?? `ticket-${ticket.id.slice(0, 12)}`
+      const add = (flag: string) => runAsWorker(this.host.context.subprocess, ['git', '-C', root, 'worktree', 'add', flag, branch, directory], dirname(directory), signal, env)
+      // `-B` resets a stale branch from an earlier attempt; `-b` covers a repository where the branch cannot be reset.
+      await add('-B').catch(() => add('-b')).catch(async (error: unknown) => {
+        await rmdir(directory).catch(() => { /* Keep what the failed command wrote, if anything. */ })
+        throw new PrepareFailed(`Preparing the local worktree failed: ${error instanceof Error ? error.message : String(error)}`)
       })
+    }
     await mkdir(directory, { recursive: true })
     await verifyDirectory(directory, this.host.context.subprocess, this.host.lifetime)
   }

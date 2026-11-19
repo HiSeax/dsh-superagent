@@ -1,6 +1,6 @@
 {
   "name": "dsh-windows-superagent-board",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Read-only superagent board page for the DSH sidebar (skeleton).",
   "type": "module",
   "main": "lib/index.js",

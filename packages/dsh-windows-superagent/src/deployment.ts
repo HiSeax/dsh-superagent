@@ -1,13 +1,13 @@
 /** Plugin configuration and startup verification for repository access and agent CLI identities. */
 import { LIMITS } from './limits.ts'
-import { accessSync, constants, statSync } from 'node:fs'
+import { accessSync, constants, mkdirSync, statSync } from 'node:fs'
 import { delimiter, isAbsolute, join } from 'node:path'
 import type { Volatile } from '@deepseek-ai/cordis'
 import s from '@deepseek-ai/schemastery'
 import { z } from 'zod'
 import type { SubprocessRuntime } from '@deepseek-ai/dsh-subprocess'
 import { runAsWorker, sameDirectory, withoutDirectory, workerBin } from './infra/environment.ts'
-import { SetupError } from './setup.ts'
+import { SetupError, type SetupCode } from './setup.ts'
 
 const reason = (error: unknown): string => error instanceof Error ? error.message : String(error)
 /** An absolute path as the running platform writes one: `/…` on POSIX; `/…`, a drive letter or a UNC path on Windows. */
@@ -88,9 +88,14 @@ export const FeishuBotSchema = z.object({ cli: z.string().trim().default('') })
 /** Source configuration keys that affect deployment setup and trigger a restart when changed. */
 export const SETUP_FIELDS: Readonly<Record<string, readonly string[]>> = { github: Object.keys(GithubAccountsSchema.shape), feishu: Object.keys(FeishuBotSchema.shape) }
 
+/** Where the local git repository lives; `created` records whether setup had to initialise it. */
+export interface LocalRepository { root: string; created: boolean }
 export interface Deployment extends Machine {
-  repository: string
-  github: { cli: string; login: string; noreply: string }
+  /** The local repository every ticket worktree branches from; present even without GitHub. */
+  local: LocalRepository
+  /** The GitHub `owner/name` the agent works against; absent when GitHub is not configured or unreachable. */
+  repository?: string
+  github?: { cli: string; login: string; noreply: string }
   feishu?: FeishuBot
 }
 export interface FeishuBot { cli: string; appId: string; brand: 'feishu' | 'lark'; botId: string; name: string }
@@ -137,8 +142,13 @@ function parsed<T>(schema: z.ZodType<T>, text: string): T | undefined {
   const result = schema.safeParse(value)
   return result.success ? result.data : undefined
 }
+/** Setup codes that only mean GitHub is unavailable: the deployment continues with the local repository alone. */
+export const GITHUB_OPTIONAL_CODES: ReadonlySet<SetupCode> = new Set<SetupCode>([
+  'repositoryUnset', 'agentCliUnset', 'agentCliMissing', 'agentCliSignedOut', 'agentCliNoAccount',
+  'repositoryUnreadable', 'repositoryUnreported', 'repositoryReadOnly',
+])
 /** Verify the agent's GitHub CLI identity and push access to the configured repository. */
-export async function resolveDeployment(machine: Machine, github: unknown, probe: Probe, path = process.env.PATH ?? ''): Promise<Deployment> {
+export async function resolveGithub(machine: Machine, github: unknown, probe: Probe, path = process.env.PATH ?? ''): Promise<{ repository: string; github: { cli: string; login: string; noreply: string } }> {
   const { stateDir } = machine
   const accounts = GithubAccountsSchema.parse(github ?? {})
   const remote = accounts.repository
@@ -156,7 +166,46 @@ export async function resolveDeployment(machine: Machine, github: unknown, probe
   if (!access) throw new SetupError('repositoryUnreported', { repository: remote })
   const repository = access.name
   if (access.push !== true) throw new SetupError('repositoryReadOnly', { account: agent.login, repository })
-  return { ...machine, repository, github: { cli, login: agent.login, noreply: `${agent.id}+${agent.login}@users.noreply.github.com` } }
+  return { repository, github: { cli, login: agent.login, noreply: `${agent.id}+${agent.login}@users.noreply.github.com` } }
+}
+
+/** Default git identity when the machine has no `user.name`/`user.email` for the host's git. */
+const LOCAL_IDENTITY = { name: 'dsh-windows-superagent', email: 'noreply@local' }
+/** Read one git config value from the host's own configuration; undefined when unset. */
+async function gitIdentityValue(subprocess: SubprocessRuntime, cwd: string, key: string, signal: AbortSignal): Promise<string | undefined> {
+  const value = await runAsWorker(subprocess, ['git', 'config', '--get', key], cwd, AbortSignal.any([signal, AbortSignal.timeout(30_000)]))
+    .catch(() => '')
+  return value.trim() || undefined
+}
+/**
+ * Resolve the local git repository every ticket worktree branches from.
+ * `configured` is `executor.repositoryPath`; when empty the repository lives at `<stateDir>/workspace/repo`.
+ * A missing directory is initialised (`git init -b main`) with one empty commit; an existing directory must already be a git repository.
+ */
+export async function resolveLocalRepository(machine: Machine, configured: string, subprocess: SubprocessRuntime, signal: AbortSignal): Promise<LocalRepository> {
+  const root = configured.trim() || join(machine.stateDir, 'workspace', 'repo')
+  const run = (argv: string[], cwd: string): Promise<string> =>
+    runAsWorker(subprocess, argv, cwd, AbortSignal.any([signal, AbortSignal.timeout(120_000)]))
+  let exists = false
+  try { exists = statSync(root).isDirectory() } catch { exists = false }
+  if (!exists) {
+    mkdirSync(root, { recursive: true })
+    try {
+      await run(['git', 'init', '-b', 'main'], root)
+      const name = await gitIdentityValue(subprocess, root, 'user.name', signal) ?? LOCAL_IDENTITY.name
+      const email = await gitIdentityValue(subprocess, root, 'user.email', signal) ?? LOCAL_IDENTITY.email
+      await run(['git', 'config', 'user.name', name], root)
+      await run(['git', 'config', 'user.email', email], root)
+      await run(['git', 'commit', '--allow-empty', '-m', 'Initial commit (dsh-windows-superagent)'], root)
+    } catch (error) {
+      throw new SetupError('localRepositoryInvalid', { root, output: reason(error) })
+    }
+    return { root, created: true }
+  }
+  await run(['git', 'rev-parse', '--git-dir'], root).catch((error: unknown) => {
+    throw new SetupError('localRepositoryInvalid', { root, output: reason(error) })
+  })
+  return { root, created: false }
 }
 
 const AuthStatus = z.object({ appId: z.string().regex(/^cli_[A-Za-z0-9]+$/), brand: z.enum(['feishu', 'lark']).default('feishu'), identities: z.object({ bot: z.object({ status: z.string() }) }) })

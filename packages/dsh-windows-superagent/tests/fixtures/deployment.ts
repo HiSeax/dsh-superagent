@@ -12,8 +12,8 @@ export const testMachine = (overrides: Partial<Machine> = {}): Machine => ({
   stateDir: '/tmp/dsh-windows-superagent-test', promptMaxChars: reference(100000), admissionContextMaxPages: reference(10),
   admissionContextTimeoutMs: reference(15000), heartbeat: NO_HEARTBEAT, ...overrides,
 })
-export const testDeployment = (overrides: Partial<Deployment> = {}): Deployment => ({
-  ...testMachine(), repository: 'acme/widgets',
+export const testDeployment = (overrides: Partial<Deployment> = {}): Deployment & { github: NonNullable<Deployment['github']> } => ({
+  ...testMachine(), local: { root: '/tmp/dsh-windows-superagent-test/workspace/repo', created: false }, repository: 'acme/widgets',
   github: { cli: '/bin/false', login: 'agent-bot', noreply: '7+agent-bot@users.noreply.github.com' },
   feishu: { cli: '/bin/false', botId: 'ou_bot', appId: 'cli_bot', brand: 'feishu', name: 'Widgets Bot' },
   ...overrides,

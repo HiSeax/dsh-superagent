@@ -185,6 +185,9 @@
           # Questions to a person, rendered by the official QuestionComposer card; the grill skill asks its rounds here.
           - id: tool-ask-user
             name: '@deepseek-ai/dsh-tool-ask-user'
+            config:
+              mode: timed
+              timeout: 100
           - id: compaction
             name: cordis:group
             group: true
@@ -358,6 +361,9 @@
             name: '@deepseek-ai/dsh-tool-skill'
           - id: tool-ask-user
             name: '@deepseek-ai/dsh-tool-ask-user'
+            config:
+              mode: timed
+              timeout: 100
           - id: compaction
             name: cordis:group
             group: true

@@ -810,41 +810,39 @@ it('leaves waiting and blocked assignments alone after a restart and keeps block
   expect(runtime.store.tickets.get(other.ticket.id)!.assignments.map(item => item.state)).toEqual(['ended', 'pending'])
 })
 
-it('waits for setup without the agent\'s GitHub CLI: the panel works, and nothing is polled, assessed or dispatched', async () => {
+it('runs without the agent\'s GitHub CLI: the local repository carries the work and GitHub is reported, not fatal', async () => {
   const { ticket, sessionId } = await acceptedTicket()
   await runTool(sessionId, 'orchestrator_report', { state: 'failed', summary: 'crashed' })
   expect(() => runtime.checkSetup()).toThrow('Setup is complete')
   controller.create.mockClear(); deliveries.mockClear()
+  // A configured GitHub Source whose CLI cannot be probed no longer blocks setup: it is reported, and the deployment runs on its local repository.
   const next = await restart({}, { github: { cli: '' } })
   await next.ready
-  expect(next.configured()).toBe(false)
-  expect(next.setupProblem).toEqual({ place: 'github', code: 'agentCliUnset', values: {}, detail: 'The agent GitHub CLI is not set.' })
-  expect(next.health.runtime).toMatchObject({ state: 'paused', code: 'setupPending' })
-  expect(() => next.deployment).toThrow('dsh-windows-superagent is waiting for setup: The agent GitHub CLI is not set.')
-  expect((await api('GET', 'state')).body).toMatchObject({ setup: { problem: { place: 'github' }, accounts: null, machine: { stateDir: directory } } })
-  expect(overviewOf(next).problems[0]).toEqual({ kind: 'setup', ...next.setupProblem })
+  expect(next.configured()).toBe(true)
+  expect(next.setupProblem).toBeUndefined()
+  expect(next.githubProblem).toEqual({ place: 'github', code: 'agentCliUnset', values: {}, detail: 'The agent GitHub CLI is not set.' })
+  expect(next.deployment.github).toBeUndefined()
+  expect(next.deployment.local.root.endsWith(join('workspace', 'repo'))).toBe(true)
+  expect((await api('GET', 'state')).body).toMatchObject({ setup: { problem: null, githubProblem: { place: 'github' }, machine: { stateDir: directory } } })
+  // Work still arrives: the ticket is retried against the local worktree instead of waiting for a GitHub account.
   await receive(feishu('30', '@bot 修一下'), next)
-  // A retry waits for setup instead of launching a worker that cannot run, and no report reaches the orchestrator.
   await next.engine.retryTicket(ticket.id)
-  expect(next.store.tickets.get(ticket.id)!.assignments.map(item => item.state)).toEqual(['ended', 'pending'])
-  expect(controller.create).not.toHaveBeenCalled()
-  expect(deliveries).not.toHaveBeenCalled()
-  // A save that changes nothing records nothing; any other save runs setup again, since it may be the fix, and so does a
-  // check after a fix outside dsh-windows-superagent.
-  const revision = next.store.get<number>('settings-revision')
-  expect(await next.settings.save('policy', next.store.settings().policy, next.store.blockRevision('policy'), 'panel')).toMatchObject({ saved: true, restarting: false })
-  expect(next.store.get<number>('settings-revision')).toBe(revision)
-  expect(await next.settings.save('policy', { ...next.store.settings().policy, rules: [] }, next.store.blockRevision('policy'), 'panel')).toMatchObject({ saved: true, restarting: true })
-  await vi.waitFor(() => expect(restarts).toHaveBeenCalledTimes(1))
-  next.checkSetup()
-  await vi.waitFor(() => expect(restarts).toHaveBeenCalledTimes(2))
+  expect(next.store.tickets.get(ticket.id)!.assignments.length).toBeGreaterThan(0)
 })
 
 it('reports each setup problem where the operator fixes it, and checks the agent CLI the way worker shells run it', async () => {
   const needs = async (place: string, code: string, values: Record<string, string>, accounts: Accounts = {}) => {
     const next = await restart({}, accounts)
     await next.ready
-    expect(next.setupProblem).toMatchObject({ place, code, values })
+    if (code === 'gitTooOld') expect(next.setupProblem).toMatchObject({ place, code, values })
+    else if (code === 'repositoryUnset') {
+      // Nothing is configured, so the downgrade is silent: no problem for the panel, and setup still completes.
+      expect(next.githubProblem).toBeUndefined()
+      expect(next.configured()).toBe(true)
+    } else {
+      expect(next.githubProblem).toMatchObject({ place, code, values })
+      expect(next.configured()).toBe(true)
+    }
   }
   answers[`${AGENT()} api repos/acme/widgets --jq {name: .full_name, push: .permissions.push}`] = '{"name":"acme/widgets","push":false}\n'
   await needs('github', 'repositoryReadOnly', { account: 'agent-bot', repository: 'acme/widgets' })

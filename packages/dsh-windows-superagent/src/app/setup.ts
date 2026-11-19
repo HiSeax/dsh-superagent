@@ -1,7 +1,7 @@
 /** Probes repository and account CLIs, configures the worker execution environment and command shims, and tracks setup readiness. */
 import type { Context } from '@deepseek-ai/cordis'
 import { UserError } from '../core/index.ts'
-import { SETUP_FIELDS, resolveDeployment, resolveFeishuBot, workerProbe, type Deployment, type Machine } from '../deployment.ts'
+import { GithubAccountsSchema, GITHUB_OPTIONAL_CODES, SETUP_FIELDS, resolveGithub, resolveLocalRepository, resolveFeishuBot, workerProbe, type Deployment, type Machine } from '../deployment.ts'
 import { agentVariables, applyEnvironment, verifyEnvironment, withoutDirectory, workerBin, writeEnvironment } from '../infra/environment.ts'
 import type { Settings, SettingsBlock } from '../policy.ts'
 import { SetupError, type SetupProblem } from '../setup.ts'
@@ -24,6 +24,8 @@ export const setupChanged = (before: Settings, after: Settings): boolean => setu
 export class Setup {
   private resolved?: Deployment
   problem?: SetupProblem
+  /** Set only when a GitHub Source is configured but its probe failed: the panel shows why GitHub is off while the deployment keeps running. */
+  githubProblem?: SetupProblem
   feishuProblem?: SetupProblem
   /** PATH with the worker shim directory removed so the host's own CLI calls invoke the real binaries. */
   private readonly path: string
@@ -64,7 +66,7 @@ export class Setup {
   async checkAccounts(block: SettingsBlock, settings: Settings): Promise<void> {
     const { machine } = this.host
     const checks: Partial<Record<SettingsBlock, () => Promise<unknown>>> = {
-      'source:github': () => resolveDeployment(machine, settings.sources.github?.config, this.probe()),
+      'source:github': () => resolveGithub(machine, settings.sources.github?.config, this.probe()),
       'source:feishu': () => resolveFeishuBot(machine, settings.sources.feishu?.config, this.probe()),
     }
     const check = checks[block]
@@ -83,14 +85,30 @@ export class Setup {
   private async resolve(settings: Settings): Promise<Deployment> {
     const { context, machine, lifetime } = this.host
     const probe = this.probe()
-    const deployment = await resolveDeployment(machine, settings.sources.github?.config, probe)
+    // GitHub is optional: a missing Source is a silent downgrade, and a configured Source that cannot be probed is reported while the
+    // deployment keeps running on its local repository. Only unexpected errors still stop setup.
+    const githubConfig = settings.sources.github?.config
+    const configured = GithubAccountsSchema.parse(githubConfig ?? {}).repository !== ''
+    let github: Awaited<ReturnType<typeof resolveGithub>> | undefined
+    try {
+      github = await resolveGithub(machine, githubConfig, probe)
+    } catch (error) {
+      if (!(error instanceof SetupError) || !GITHUB_OPTIONAL_CODES.has(error.code)) throw error
+      if (configured) {
+        this.githubProblem = error.problem
+        context.logger.warn('dsh-windows-superagent runs without GitHub: %s', error.message)
+      } else {
+        context.logger.info('dsh-windows-superagent runs without GitHub: %s', error.message)
+      }
+    }
+    const local = await resolveLocalRepository(machine, settings.executor.repositoryPath, context.subprocess, lifetime)
     const feishu = await resolveFeishuBot(machine, settings.sources.feishu?.config, probe).catch((error: unknown) => {
       if (!(error instanceof SetupError)) throw error
       this.feishuProblem = error.problem
       context.logger.warn('dsh-windows-superagent leaves Feishu out: %s', error.message)
       return undefined
     })
-    const resolved = { ...deployment, ...(feishu ? { feishu } : {}) }
+    const resolved: Deployment = { ...machine, local, ...(github ?? {}), ...(feishu ? { feishu } : {}) }
     const machineProblem = (error: unknown): never => {
       if (error instanceof SetupError) throw error
       throw new SetupError('environmentFailed', { output: error instanceof Error ? error.message : String(error) })
