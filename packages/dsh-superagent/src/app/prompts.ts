@@ -25,7 +25,7 @@ const SkillNameSchema = z.string().regex(SKILL_NAME).refine(name => !Object.hasO
 /** The built-in parts a team may override, by key: both roles' parts, the Source skills, and the generated parts' templates. */
 const PART_KEYS = ['runtime/shared', 'runtime/orchestrator', 'runtime/worker', 'runtime/subscriptions', 'runtime/replies',
   'runtime/dispatch', 'runtime/work', 'runtime/admission', 'runtime/handoff/orchestrator', 'runtime/handoff/worker', 'runtime/environment',
-  'runtime/policy', 'runtime/policy/none', 'skill/feishu', 'skill/github', 'skill/weixin'] as const
+  'runtime/policy', 'runtime/policy/none', 'skill/feishu', 'skill/github', 'skill/grill', 'skill/weixin'] as const
 export type PartKey = typeof PART_KEYS[number]
 /** A team's text for a built-in part, and `base`, the key of the built-in text it was edited from. */
 const OverrideSchema = z.object({ text: z.string(),
@@ -99,6 +99,7 @@ export const builtInParts = (): Readonly<Record<PartKey, BuiltInPart>> => parts 
     placeholders: ['{version}', '{mode}'] },
   'skill/feishu': { roles: BOTH, text: `${sourceSkills.feishu!}\n\n## CLI usage\n${cliNotes}` },
   'skill/github': { roles: BOTH, text: `${sourceSkills.github!}\n\n## CLI usage\n${cliNotes}` },
+  'skill/grill': { roles: BOTH, text: sourceSkills.grill! },
   'skill/weixin': { roles: BOTH, text: sourceSkills.weixin! },
 }
 /** The key of a built-in text, which an override's `base` records. */
@@ -179,7 +180,7 @@ export class Prompts {
   }
   /** Returns skills to register in every Session: built-in Source skills (`feishu` only when a Feishu bot is configured) followed by team skills. */
   skills(config: PromptConfig): [string, string][] {
-    return [...this.feishu() ? ['feishu'] : [], ...this.weixin() ? ['weixin'] : [], 'github', ...Object.keys(config.skills)].map(name => [name, composeSkill(config, name)])
+    return [...this.feishu() ? ['feishu'] : [], ...this.weixin() ? ['weixin'] : [], 'github', 'grill', ...Object.keys(config.skills)].map(name => [name, composeSkill(config, name)])
   }
   current(): PromptVersion {
     const revision = this.versions.revision()

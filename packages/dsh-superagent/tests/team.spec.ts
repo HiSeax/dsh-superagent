@@ -8,7 +8,7 @@ import type { SessionId } from '@deepseek-ai/dsh-session'
 import { UserError } from '../src/core/errors.ts'
 import { KV } from '../src/kv.ts'
 import type { Store } from '../src/app/store.ts'
-import { Team, isWorkingSelfTicket, type Teammate } from '../src/app/team.ts'
+import { Team, isWorkingTemporaryTicket, type Teammate } from '../src/app/team.ts'
 import type { Ticket } from '../src/core/model.ts'
 import { teamTools } from '../src/app/tools/team.ts'
 
@@ -282,17 +282,46 @@ describe('temporary workers', () => {
     origin: { kind: 'self', triggerId: '', triggerIds: [] }, ...over,
   } as unknown as Ticket)
   const running = [{ id: 'a1', state: 'running', createdAt: '2026-11-11T10:41:33.476Z' }]
-  it('counts a self ticket whose worker runs, and not one waiting on a person', () => {
-    expect(isWorkingSelfTicket(selfTicket({ assignments: running }))).toBe(true)
+  it('counts an unowned ticket whose worker runs, and not one waiting on a person', () => {
+    expect(isWorkingTemporaryTicket(selfTicket({ assignments: running }))).toBe(true)
     // The worker asked a question, so the ticket waits for a person: the board lists it as 待人工, not as a temporary worker.
-    expect(isWorkingSelfTicket(selfTicket({ assignments: running, attention: { id: 'q', question: '选 A 还是 B' } }))).toBe(false)
-    expect(isWorkingSelfTicket(selfTicket({ assignments: [{ id: 'a1', state: 'pending', createdAt: '2026-11-11T10:41:33.476Z' }] }))).toBe(true)
-    expect(isWorkingSelfTicket(selfTicket({ assignments: running, ended: { at: '2026-11-11T11:00:00.000Z', by: 'executor', outcome: 'completed' } }))).toBe(false)
-    expect(isWorkingSelfTicket(selfTicket({ assignments: running, origin: { kind: 'trigger', triggerId: 'x', triggerIds: ['x'] } }))).toBe(false)
+    expect(isWorkingTemporaryTicket(selfTicket({ assignments: running, attention: { id: 'q', question: '选 A 还是 B' } }))).toBe(false)
+    expect(isWorkingTemporaryTicket(selfTicket({ assignments: [{ id: 'a1', state: 'pending', createdAt: '2026-11-11T10:41:33.476Z' }] }))).toBe(true)
+    expect(isWorkingTemporaryTicket(selfTicket({ assignments: running, ended: { at: '2026-11-11T11:00:00.000Z', by: 'executor', outcome: 'completed' } }))).toBe(false)
+    // A ticket accepted from an IM conversation has no `self` origin; it still runs a temporary worker.
+    expect(isWorkingTemporaryTicket(selfTicket({ assignments: running, origin: { kind: 'trigger', triggerId: 'x', triggerIds: ['x'] } }))).toBe(true)
+    // A ticket dispatched to a teammate belongs to that teammate's card.
+    expect(isWorkingTemporaryTicket(selfTicket({ assignments: running, owner: 't-1' }))).toBe(false)
   })
   it('leaves a ticket dispatched to a teammate to that teammate card, not to the lead temporary workers', () => {
     const h = host({ tickets: [selfTicket({ id: 'self-owned', assignments: running, owner: 't-1' }),
       selfTicket({ id: 'self-free', assignments: running })] })
     expect(h.team.status().workers.map(worker => worker.ticketId)).toEqual(['self-free'])
+  })
+  it('lists a WeChat-triggered unowned running ticket as a temporary worker too', () => {
+    // The 2026-11-19 board report: an accepted IM ticket ran a worker but never appeared (origin is not `self`).
+    const h = host({ tickets: [
+      selfTicket({ id: 'self-a', title: '自建工单', createdAt: '2026-11-19T01:50:21.452Z', updatedAt: '2026-11-19T01:50:21.452Z',
+        assignments: [{ id: 'a1', state: 'running', createdAt: '2026-11-19T01:50:21.452Z' }] }),
+      selfTicket({ id: '33812', title: 'IM 工单', origin: { triggerId: 'w1', triggerIds: ['w1'] },
+        createdAt: '2026-11-19T01:52:06.028Z', updatedAt: '2026-11-19T01:52:06.028Z',
+        assignments: [{ id: 'a2', state: 'running', createdAt: '2026-11-19T01:52:06.028Z' }] }),
+    ] })
+    expect(h.team.status().workers.map(worker => worker.ticketId)).toEqual(['self-a', '33812'])
+  })
+  it('names the newest unowned running ticket as the lead card current ticket', () => {
+    const h = host({ tickets: [
+      selfTicket({ id: 'older', title: '旧在跑', assignments: running, updatedAt: '2026-11-19T01:50:21.452Z' }),
+      selfTicket({ id: 'newer', title: '新在跑', origin: { triggerId: 'w1', triggerIds: ['w1'] }, assignments: running, updatedAt: '2026-11-19T02:00:00.000Z' }),
+      selfTicket({ id: 'owned', title: '成员工单', assignments: running, owner: 't-1', updatedAt: '2026-11-19T03:00:00.000Z' }),
+    ] })
+    expect(h.team.status()).toMatchObject({ leadTicketId: 'newer', leadTicketTitle: '新在跑' })
+  })
+  it('omits the lead ticket when no unowned ticket is running', () => {
+    const h = host({ tickets: [selfTicket({ id: 'owned', assignments: running, owner: 't-1' }),
+      selfTicket({ id: 'ended', assignments: running, ended: { at: 'x', by: 'human', outcome: 'completed' } })] })
+    const status = h.team.status()
+    expect(status.leadTicketId).toBeUndefined()
+    expect(status.workers).toEqual([])
   })
 })

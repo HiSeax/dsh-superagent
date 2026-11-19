@@ -7,7 +7,7 @@ import { UserError } from '../src/core/errors.ts'
 describe('buildBoard', () => {
   it('输出 schemaVersion 1 且工单状态映射到枚举', () => {
     const board = buildBoard({
-      tickets: [{ id: 'T1', title: 'Fix timezone handling in export button', state: 'working', owner: 'weixin-media-dev', updatedAt: '2026-11-06T16:00:00+08:00', summary: '已合并' }],
+      tickets: [{ id: 'T1', title: '修微信收图', state: 'working', owner: 'weixin-media-dev', updatedAt: '2026-11-06T16:00:00+08:00', summary: '已合并' }],
       members: [],
     })
     expect(board.schemaVersion).toBe(1)

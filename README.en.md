@@ -103,6 +103,23 @@ chat and the agent replies with its plan in the same chat.
 the app top bar (account / bot name) and the input bar are removed. No credentials,
 paths, phone numbers or personal names are visible.*
 
+### Grill question card (isolated instance, cropped and sanitized)
+
+The main Session ships the **grill skill**: it maps a plan or decision onto a question
+tree and puts each round of frontier questions into one `ask_user_question` call —
+rendered as the official question card: **clickable options, a free-input fallback, and
+a skip** control, with the recommended option first. The picked answer returns straight
+into the main Session's turn ("你选择了『选项甲』" below), so nobody has to re-type it.
+
+| Question card — options / free input / skip | Answer returned — the turn continues |
+| --- | --- |
+| ![Grill question card](docs/screenshots/grill-question-card.png) | ![Answer returned](docs/screenshots/grill-answer-returned.png) |
+
+*Captured on an isolated demo instance (its own profile, port and a rewired, isolated
+copy of the state); cropped to the conversation and card area, with the sidebar and the
+rest of the transcript removed — no internal project names. Executor (worker) sessions
+never receive the tool: only the main Session asks a person.*
+
 ## What's in this repository
 
 ```
@@ -166,7 +183,7 @@ Unix-only in practice. What this release adds:
 | Operating system | Unix-only in practice (`fcntl`, `tmux`, `#!/bin/sh` shims, `bash` tool, `/…`-only paths) | **Windows adaptation**: drive/UNC paths, `PATHEXT`, `pwsh` shell tool, `windowsHide`, case-insensitive paths, `waitForStateLock()`, tmux/fcntl-free service manager, `install-windows.ps1` |
 | Service lifecycle on Windows | tmux-based | PID identity check before `taskkill /T /F` (fail-closed), DSH ≥ 0.2 gate, explicit-profiles-only installer |
 | Channels | GitHub + Feishu | GitHub, Feishu, **local DSH Session**, **WeChat via iLink bot** |
-| Human surface | Terminal / logs | **Board panel** in the DSH sidebar |
+| Human surface | Terminal / logs | **Board panel** in the DSH sidebar; the **grill question card** (official `ask_user_question`) in the main Session |
 | Authorization | Ad-hoc allow-lists | Versioned **Policy** with admission table, accept modes, rules, Mandates |
 | Assessment tooling | — | **Eval toolchain** with recorded decisions and re-queue on Policy change |
 | Packaging | Research checkout | Monorepo release snapshot with sanitized examples and bilingual docs |
@@ -331,6 +348,12 @@ node packages\dsh-superagent\scripts\dsh-superagent.mjs status --profile superag
 
 The orchestrator works with **any DSH skill library** — it neither ships nor requires a
 particular set of skills; point your DSH profile at whichever skills you already use.
+
+The one exception is the bundled **`dsh-superagent-grill`** (shipped with the package and
+registered in every session): the asking protocol of a grill interview — a question
+tree, frontier rounds, the recommended option first, the free-input fallback kept open,
+and facts looked up rather than asked. It pairs with `ask_user_question` in the main
+Session only.
 
 ## Development
 

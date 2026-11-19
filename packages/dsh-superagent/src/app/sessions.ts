@@ -522,7 +522,8 @@ export class Sessions {
     for (const tool of host.tools(agent, ticket)) register(tool.name, tool.description, tool.schema, tool.execute)
     if (master) {
       const shell = shellToolOf(agent)
-      binding.disposers.push(agent.ctx.tools.restrict({ allow: ['skill', shell, 'read', 'read_image', 'job_output', 'job_list', 'job_kill'] }),
+      // The main Session asks a person with the official `ask_user_question` card (preset row `tool-ask-user`); workers never do.
+      binding.disposers.push(agent.ctx.tools.restrict({ allow: ['skill', shell, 'read', 'read_image', 'job_output', 'job_list', 'job_kill', 'ask_user_question'] }),
         agent.ctx.tools.guard(execution => noWait(execution, () => this.routed(agent), shell)))
     } else {
       // An Executor Session keeps the profile's work tools it has, which DSH requires to be known; its own tools are not masked.

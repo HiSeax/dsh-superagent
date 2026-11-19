@@ -71,6 +71,16 @@
 
 *真实使用截图。已裁剪到对话气泡区域——手机状态栏、应用顶栏（账号 / 机器人名）与底部输入栏均已去掉；画面中不含凭据、路径、手机号或人名。*
 
+### Grill 选择卡（隔离实例实测截图，已裁剪脱敏）
+
+主 Session 内置 **grill 技能**：把一个计划或决策拆成问题树，每轮把「当前能问的问题」放进一次 `ask_user_question` 调用——渲染成官方选择卡：**选项可点、自由输入兜底、可跳过**，推荐项排第一。作答后答案直接回到主 Session 的回合里继续推理（下右图「你选择了『选项甲』」），不需要人再复述一遍。
+
+| 选择卡——选项 / 自由输入 / 跳过 | 作答回传——回合继续 |
+| --- | --- |
+| ![Grill 选择卡](docs/screenshots/grill-question-card.png) | ![作答回传](docs/screenshots/grill-answer-returned.png) |
+
+*隔离演示实例（独立 profile、独立端口、克隆后隔离的数据快照）实测截图；已裁剪到对话与卡片区域，去掉侧栏与其余转录，不含内部项目名。执行器（worker）会话拿不到这个工具——只有主控会话向人提问。*
+
 ## 仓库里有什么
 
 ```
@@ -121,7 +131,7 @@ dsh-superagent-release/
 | 操作系统 | 实践上 Unix-only（`fcntl`、`tmux`、`#!/bin/sh` shim、`bash` 工具、只认 `/…` 路径） | **Windows 适配**：盘符/UNC 路径、`PATHEXT`、`pwsh` shell 工具、`windowsHide`、大小写不敏感路径、`waitForStateLock()`、无 tmux/fcntl 的服务管理器、`install-windows.ps1` |
 | Windows 上的服务生命周期 | 面向 tmux | `taskkill /T /F` 前做 PID 身份校验（fail-closed）、DSH ≥ 0.2 闸门、安装器只改显式指定的 profile |
 | 通道 | GitHub + 飞书 | GitHub、飞书、**本地 DSH 会话**、**微信（iLink Bot）** |
-| 人的界面 | 终端 / 日志 | DSH 侧栏里的**看板** |
+| 人的界面 | 终端 / 日志 | DSH 侧栏里的**看板**；主控会话的 **grill 选择卡**（官方 `ask_user_question`） |
 | 授权 | 临时 allow-list | 有版本的 **Policy**：准入表、accept 模式、规则、Mandate |
 | 评估工具链 | — | **Eval 工具链**：决策留痕、Policy 变更后重排队 |
 | 打包 | 研究性 checkout | 单仓发布快照 + 脱敏示例 + 双语文档 |
@@ -253,6 +263,8 @@ node packages\dsh-superagent\scripts\dsh-superagent.mjs status --profile superag
 ## 技能（Skills）
 
 编排器可搭配**任意 DSH 技能库**使用——它不自带、也不要求某套特定技能；把你的 DSH profile 指向你已经在用的技能即可。
+
+例外是内置的 **`dsh-superagent-grill`**（随包分发、每个会话注册）：一轮 grill 访谈的提问协议——问题树、前沿轮次、推荐项第一、自由输入兜底、事实自查不问人；只在主控会话里配合 `ask_user_question` 用。
 
 ## 开发
 

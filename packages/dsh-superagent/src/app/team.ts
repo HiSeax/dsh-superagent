@@ -75,8 +75,11 @@ export interface TeamStatus {
   lastWakeAt: string | null
   pendingReports: number
   failedReplies: number
-  /** Live self-created tickets and the worker Session each runs, in oldest-active order. */
+  /** Live unowned tickets (whatever their origin) and the worker Session each runs, in oldest-active order. */
   workers: { sessionId: string; ticketId: string; ticketTitle: string; startedAt: string }[]
+  /** The unowned running ticket the lead card names as its current work, when one exists. */
+  leadTicketId?: string
+  leadTicketTitle?: string
 }
 
 /** The teammate facts a Session's system prompt needs, read on every model request so edits apply at the next turn. */
@@ -87,14 +90,27 @@ export interface TeammateBrief {
   brief?: string
 }
 /**
- * Whether a self-created ticket still runs a temporary worker: it is open, an assignment is running or queued, and the ticket
- * is not waiting on a person. A worker that asked a question leaves the ticket waiting for that answer, which the board shows
- * as a ticket needing a person rather than a temporary worker card that stays until somebody answers.
+ * Whether an unowned ticket still runs a temporary worker: it is open, an assignment is running or queued, and the
+ * ticket is not waiting on a person. A worker that asked a question leaves the ticket waiting for that answer, which
+ * the board shows as a ticket needing a person rather than a temporary worker card that stays until somebody answers.
+ * The ticket's origin does not matter: a ticket accepted from an IM conversation runs a worker exactly like a
+ * self-created one, so only an explicit owner (a teammate's ticket) takes it off the lead's temporary workers.
  */
-export function isWorkingSelfTicket(ticket: Ticket): boolean {
-  return ticket.origin?.kind === 'self' && !ticket.ended
+export function isWorkingTemporaryTicket(ticket: Ticket): boolean {
+  return ticket.owner === undefined && !ticket.ended
     && ticket.assignments.some(assignment => assignment.state === 'running' || assignment.state === 'pending')
     && ticketStage(ticket).stage === 'working'
+}
+
+/**
+ * The ticket the lead card names as its current work: the most recently updated unowned ticket that is actively
+ * being worked. It uses the same rule as the temporary-worker list, so the lead and the worker card describe the
+ * same ticket from the two sides (the dispatcher and the worker), never a teammate's ticket.
+ */
+export function leadTicketOf(tickets: readonly Ticket[]): Ticket | undefined {
+  return tickets
+    .filter(isWorkingTemporaryTicket)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.id.localeCompare(a.id))[0]
 }
 
 /** What `Team` needs from the host: DSH services, the Store's key-value area, and Session lifecycle helpers. */
@@ -206,22 +222,26 @@ export class Team {
 
   /** Wake/report health for `/team`: the latest successful wake and how many reports are waiting for the main turn. */
   status(): TeamStatus {
+    const tickets = this.host.store.tickets?.list() ?? []
+    const lead = leadTicketOf(tickets)
     return { lastWakeAt: this.host.store.get(KV.team.lastWakeAt) ?? null, pendingReports: this.pendingReports().length,
-      failedReplies: this.host.failedReplies?.() ?? 0, workers: this.temporaryWorkers() }
+      failedReplies: this.host.failedReplies?.() ?? 0, workers: this.temporaryWorkers(tickets),
+      ...(lead ? { leadTicketId: lead.id, leadTicketTitle: lead.title } : {}) }
   }
 
   /**
-   * The self-created tickets still being worked, plus the deterministic worker Session each runs. A ticket whose worker asked
+   * The unowned tickets still being worked, plus the deterministic worker Session each runs. A ticket whose worker asked
    * a person a question is not being worked: the board lists it among the tickets waiting for a person, and hanging a
    * temporary worker card under the lead for it would keep that card there until somebody answers. A ticket dispatched to a
    * teammate is that teammate's, shown on its card, not a temporary worker of the lead.
    */
-  private temporaryWorkers(): TeamStatus['workers'] {
-    return this.activeTickets()
-      .filter(ticket => ticket.owner === undefined && isWorkingSelfTicket(ticket))
+  private temporaryWorkers(tickets: readonly Ticket[] = this.host.store.tickets?.list() ?? []): TeamStatus['workers'] {
+    return tickets
+      .filter(ticket => isWorkingTemporaryTicket(ticket))
       .map(ticket => {
-        const assignment = ticket.assignments.filter(item => item.state === 'running' || item.state === 'pending')
-          .sort((a, b) => (a.startedAt ?? a.createdAt).localeCompare(b.startedAt ?? b.createdAt))[0]
+        const assignment = ticket.assignments
+          .filter(item => item.state === 'running' || item.state === 'pending')
+          .sort((a, b) => (a.startedAt ?? a.createdAt).localeCompare(b.startedAt ?? b.createdAt) || a.id.localeCompare(b.id))[0]
         return { sessionId: `worker-${ticket.id}`, ticketId: ticket.id, ticketTitle: ticket.title,
           startedAt: assignment?.startedAt ?? assignment?.createdAt ?? ticket.createdAt }
       })
@@ -275,11 +295,6 @@ export class Team {
     return owned.filter(ticket => !ticket.ended && ticket.assignments.some(assignment => assignment.state === 'running' || assignment.state === 'pending'))
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
       ?? owned.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
-  }
-  /** Live tickets with a running or pending assignment, the one shared source for member and temporary-worker lookup. */
-  private activeTickets(): Ticket[] {
-    return (this.host.store.tickets?.list() ?? [])
-      .filter(ticket => !ticket.ended && ticket.assignments.some(assignment => assignment.state === 'running' || assignment.state === 'pending'))
   }
   /** The live tool surface of a teammate, including the report tool whose disappearance users can spot at a glance. */
   private toolsOf(agent: Agent): { count: number; hasReport: boolean } {
