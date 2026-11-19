@@ -25,6 +25,13 @@ This is a research prototype; entries describe user-visible behaviour, not a sta
   缺失自动 `git init -b main` 并做一次空提交）；`executor.prepare` 为空时用工单目录 `git worktree add`
   准备，无远端也能开工；prepare 非空时行为不变。无 GitHub 时不写 `gh` 垫片与 git 凭据助手，GitHub Source 保持暂停。
 
+- **The board's refresh button sits on the title line / 看板刷新按钮并入标题行** — the header stays a
+  single row at every width: 「团队任务板」 on the left, the blue refresh button on the right. In the
+  narrow sidebar it no longer takes a row of its own (the secondary "updated at" timestamp is hidden
+  there instead). Refresh the board page to pick it up.
+  看板头部在任何宽度下都保持单行：左侧标题、右侧刷新按钮；窄侧栏不再让按钮独占一行（次要的"更新于"
+  时间戳在该宽度下隐藏）。刷新看板页面即可生效。
+
 ## 0.2.5
 
 - Recognize environments written before the rename (`LEGACY_MARKERS`), so setup no longer ends

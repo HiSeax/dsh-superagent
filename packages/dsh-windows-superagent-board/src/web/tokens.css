@@ -168,8 +168,9 @@ section { margin-bottom: 32px; }
 }
 /* Functional task-board layer: grouped list, selected row, refresh, detail actions. */
 main { max-width: 1280px; margin: 0 auto; padding: 24px; }
-.board-summary { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
-.board-summary-title h2 { margin: 0; }
+.board-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: nowrap; margin-bottom: 16px; }
+.board-summary-title { min-width: 0; }
+.board-summary-title h2 { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .summary { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
 .board-actions { display: flex; align-items: center; gap: 12px; flex: none; }
 #updated { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -203,8 +204,10 @@ main { max-width: 1280px; margin: 0 auto; padding: 24px; }
 .view-result { color: var(--accent); border-color: #b8d8ff; background: #f5f9ff; }
 @media (max-width: 640px) {
   main { padding: 16px; }
-  .board-summary { flex-direction: column; }
-  .board-actions { width: 100%; justify-content: space-between; }
+  /* The refresh stays on the title line in the narrow sidebar: never a row of its own. */
+  .board-summary { flex-wrap: nowrap; align-items: center; gap: 8px; }
+  .board-actions { width: auto; justify-content: flex-end; gap: 8px; flex: none; }
+  #updated { display: none; }
   .detail { width: 100%; }
 }
 /* Keep the detail panel out of the narrow sidebar's click path: it follows the list, never covers it. */
@@ -285,7 +288,7 @@ section { margin-bottom: 24px; }
   .ticket-row, .card { transition: none; }
   .skeleton { animation: none; }
 }
-@media (max-width: 640px) { main { padding: 16px; } .board-summary { flex-direction: column; } }
+@media (max-width: 640px) { main { padding: 16px; } }
 /* Bold visual pass: sticky summary, colored group bands, solid chips, avatars. */
 .board-summary {
   position: sticky;
