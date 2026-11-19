@@ -55,3 +55,19 @@ upstream origin defaults to `http://127.0.0.1:8916`, may proxy the *other* deplo
 
 *Both entries are generic: no accounts, tokens, machine paths or project names.*
 *两条均为通用描述，不含账号、token、本机路径或项目名。*
+
+## 3. The board package needs `dsh.bundle` to be mounted as a bundle
+
+**现象**：把 `dsh-windows-superagent-board` 直接加进 `dsh.profile.bundles` 时，DSH 打印
+`dsh: profile bundle "dsh-windows-superagent-board" declares no dsh.bundle in its package.json` 并跳过该包。
+
+**原因**：0.2.6 发布的 board 包 `package.json` 没有 `dsh.bundle` 声明，DSH 只能通过 profile patch 的
+`insert` 行挂载它（desktop profile 正是这么挂的）。
+
+**修复**：board 包 `package.json` 已补
+`"dsh": { "bundle": { "patch": "./cordis.patch.yml" }, … }`（与主包同写法，随下一次发布生效）。
+在那之前（包括 0.2.6 tarball 安装）用 `dsh plugin --profile <p> add "link:<board 目录>"`
+或手写 `- id: superagent-board / name: 'dsh-windows-superagent-board'` insert 行挂载。
+
+**验证**（隔离实例，gates\20261120-release-verify-026）：bundles 列表含 board → 跳过并提示缺声明；
+改用 insert 行 → 18916 端口正常服务 `/healthz`、`/board.json`、`/team.json`。

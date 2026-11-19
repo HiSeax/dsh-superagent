@@ -1,6 +1,6 @@
-# Example only: this row is what a local desktop profile needs to mount the package.
-# Install it with `dsh plugin --profile desktop add C:\Projects\superagent-board`, or add the
-# dependency and the row by hand as README.md describes. This file is not applied by itself.
+# Bundle layer: DSH applies this insert row when the package is mounted as a profile bundle
+# (dsh.bundle.patch in package.json). A profile may add the same row by hand instead; that is
+# how the 0.2.6 tarball must be mounted, because that release declares no dsh.bundle.
 - insert:
     - id: superagent-board
       name: 'dsh-windows-superagent-board'
