@@ -37,7 +37,7 @@ import { join } from 'node:path'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 
 const REPO = fileURLToPath(new URL('..', import.meta.url))
-const PACKAGE = join(REPO, 'packages', 'dsh-superagent-board')
+const PACKAGE = join(REPO, 'packages', 'dsh-windows-superagent-board')
 const OUT_DIR = join(REPO, 'docs', 'screenshots')
 const OUT_FILE = join(OUT_DIR, 'harness-full.png')
 const TOKEN = 'demo-capture-token'

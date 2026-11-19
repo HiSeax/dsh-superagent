@@ -1,10 +1,10 @@
-# dsh-superagent（发布快照）
+# dsh-windows-superagent（发布快照）
 
 > **仅为研究原型，供参考——不是 DeepSeek 官方产品。** 这套代码来自日常开发工作，其中相当一部分工程由编码 agent 完成。请把它当作研究代码而非可直接上生产线的软件；在你自己的环境使用前请先评审、改造。它由上游研究原型改造而来，**不等于**内部版本，也**不等于**论文《Exploring Super-agent Design: Towards a More Autonomous Agent System》里描述的实现。
 >
 > English: **[README.en.md](README.en.md)**
 
-`dsh-superagent` 是一个**面向单个 GitHub 仓库的主动式编码 agent**，以 bundle 形式打包给
+`dsh-windows-superagent` 是一个**面向单个 GitHub 仓库的主动式编码 agent**，以 bundle 形式打包给
 [DeepSeek Harness](https://www.deepseek.com/en/harness/) **0.2+**。它监听 GitHub，并可选监听飞书、本地 DSH 会话，或通过 iLink Bot 连接个人微信。当被授权的人向它派活时，它会开一个工单（**ticket**），在自己的 agent 会话与目录里完成，然后回到原对话答复——例如给出一个 pull request。一个网页**看板**显示哪些事需要人处理。
 
 工作原则：**尽可能少占用人的注意力，尽可能多地交付价值。** 只有被要求、或团队写下的规则允许时它才行动；只有必须有人处理、或有人能用上结果时它才说话。
@@ -17,8 +17,8 @@
 
 **本仓库是什么。** 两个**跑在 DSH 之上的第三方插件**：
 
-- `packages/dsh-superagent` —— 编排插件；
-- `packages/dsh-superagent-board` —— 看板面板插件。
+- `packages/dsh-windows-superagent` —— 编排插件；
+- `packages/dsh-windows-superagent-board` —— 看板面板插件。
 
 它**不是 DSH 的 fork，也不替换 DSH**；没有 DSH 宿主它跑不起来。
 
@@ -31,7 +31,7 @@
 | profile 与 `cordis.patch.yml` patch 机制、profile 下 `node_modules` 解析 | 通道适配：GitHub、飞书、本地 DSH 会话、微信（iLink Bot） |
 | agent preset / persona 插件、`tools.restrict` 守卫 | 执行器所跑的 worker preset 与团队 prompt 分节 |
 | Settings UI、MCP 客户端（可自行挂 MCP server） | **Policy 策略**：准入表、accept 模式（`off`/`observe`/`auto`）、主动规则、Mandate |
-| MCP 客户端 | 服务脚本：`scripts/dsh-superagent.mjs`、`scripts/install-windows.ps1` |
+| MCP 客户端 | 服务脚本：`scripts/dsh-windows-superagent.mjs`、`scripts/install-windows.ps1` |
 
 **版本兼容（本机实测）**：实测 **DSH `0.2.2-rc.3`**。`scripts/install-windows.ps1` 会拒绝低于 **0.2** 的 `dsh`（0.1.x 没有 `--profile`）。升级 DSH 可能破坏：
 
@@ -39,7 +39,7 @@
 - 若宿主改名了 bundle 的 client `inject` 里的那些 client 包，注入会失败；
 - 若 preset / persona 插件的 id 变化，会影响 worker preset。
 
-升级 DSH 后请重跑 `pnpm --filter dsh-superagent-board smoke` 与 `pnpm --filter dsh-superagent check`。
+升级 DSH 后请重跑 `pnpm --filter dsh-windows-superagent-board smoke` 与 `pnpm --filter dsh-windows-superagent check`。
 
 **依赖边界**：本仓库**不修改任何 DSH 官方文件**，只通过三种方式挂上去：
 
@@ -84,7 +84,7 @@
 ## 仓库里有什么
 
 ```
-dsh-superagent-release/
+dsh-windows-superagent-release/
 ├── README.md / README.en.md         双语总览（本文件）
 ├── LICENSE                          MIT，两个子包共用
 ├── SETUP.md                         部署速览（从这里开始）
@@ -97,12 +97,12 @@ dsh-superagent-release/
 │   └── walkthrough.md                              一条消息 → 一个工单 → 一个 PR
 ├── tools/capture-demo-screenshots.mjs              复现 docs/screenshots/* 的脚本
 └── packages/
-    ├── dsh-superagent/              编排插件本体（Sources、Engine、Policy、提示词、
+    ├── dsh-windows-superagent/              编排插件本体（Sources、Engine、Policy、提示词、
     │                                执行器、通道、docs 000–008、测试）
-    └── dsh-superagent-board/        只读看板面板（DSH 0.2.x 客户端插件）
+    └── dsh-windows-superagent-board/        只读看板面板（DSH 0.2.x 客户端插件）
 ```
 
-两个包是相互独立的 DSH 插件。`dsh-superagent-board` **不 fork、也不替换** `dsh-better-sidebar`，它注册自己的侧栏入口与主面板。
+两个包是相互独立的 DSH 插件。`dsh-windows-superagent-board` **不 fork、也不替换** `dsh-better-sidebar`，它注册自己的侧栏入口与主面板。
 
 ## 架构：它是怎么工作的（Architecture）
 
@@ -111,19 +111,19 @@ dsh-superagent-release/
 *左：会话/插件侧栏；中：与 dispatcher 的对话与富文本回执；右：团队任务板。演示实例 · 虚构数据（会话 `demo-widgets` / `example-service`，队友 Atlas·Nova·Orion·Vega·Helios）。*
 
 一条消息经过五个阶段。每个阶段的规范描述见
-[`packages/dsh-superagent/docs/`](packages/dsh-superagent/docs/002-authorization.md)。
+[`packages/dsh-windows-superagent/docs/`](packages/dsh-windows-superagent/docs/002-authorization.md)。
 2. **Eval（闸门）。** 检查发送者与该 Source 的 **Policy**：在名单上且指向 agent 的人是**显式请求**；其他消息走**准入表**与 **accept 模式**（`off` / `observe`（默认）/ `auto`）。
 3. **派单（Dispatch）。** 主会话用 `orchestrator_route` 处置显式候选（accept / attach / stop / ignore）。**accept** 原子地创建：**Ticket**、其 **Mandate**、对该线程的 **Subscriptions**、首个 **Assignment**，以及一条确认回复。
 4. **工单 → 执行器 → 队友。** 每个工单有自己的执行器会话（`worker-<ticketId>`）与目录；可派生**队友**子会话。遇到只有人能定的事，工单标记 `blocked`。
 5. **回报 / 回复。** 通道写**确认**、**答复**、**结果**或**需要关注**——每一条都必须有允许它的规则。
 
 详见 [`docs/concepts.md`](docs/concepts.md) 与
-[`packages/dsh-superagent/docs/`](packages/dsh-superagent/docs/002-authorization.md)。
+[`packages/dsh-windows-superagent/docs/`](packages/dsh-windows-superagent/docs/002-authorization.md)。
 
 ## 与官方基线的区别
 
 诚实基线是两个：①**DSH 0.2 基础版**——宿主没有主动式编排；②**本代码源自的上游研究原型**
-（[`vHao11/dsh-superagent@windows-adapt`](https://github.com/vHao11/dsh-superagent/tree/windows-adapt)），实践上 **Unix-only**。本发布增加了：
+（[`vHao11/dsh-windows-superagent@windows-adapt`](https://github.com/vHao11/dsh-windows-superagent/tree/windows-adapt)），实践上 **Unix-only**。本发布增加了：
 
 | 方面 | 基线 | 本发布 |
 | --- | --- | --- |
@@ -159,11 +159,11 @@ dsh-superagent-release/
 
 ```powershell
 # 1) 克隆并构建
-git clone https://github.com/HiSeax/dsh-superagent.git dsh-superagent-release
-cd dsh-superagent-release
+git clone https://github.com/HiSeax/dsh-windows-superagent.git dsh-windows-superagent-release
+cd dsh-windows-superagent-release
 pnpm install
-pnpm --filter dsh-superagent check                    # typecheck + vitest + build
-pnpm --filter dsh-superagent-board build
+pnpm --filter dsh-windows-superagent check                    # typecheck + vitest + build
+pnpm --filter dsh-windows-superagent-board build
 
 # 2) 建一个专用 profile
 $dsh = "C:\Users\<you>\AppData\Local\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd"
@@ -171,29 +171,29 @@ $dsh = "C:\Users\<you>\AppData\Local\Programs\DeepSeek Harness\resources\runtime
 
 # 3) 把编排插件挂到该 profile
 #    （这一步会在 profile 的 node_modules 下建 junction，并插入插件行）
-dsh plugin --profile superagent add "link:$PWD\packages\dsh-superagent"
+dsh plugin --profile superagent add "link:$PWD\packages\dsh-windows-superagent"
 
 # 4) 填 stateDir（必须是 Windows 绝对路径）：
 #    编辑 <DSH_HOME>\profiles\superagent\cordis.patch.yml  →  config.stateDir
 #    脱敏示例：examples/profiles/desktop/cordis.patch.example.yml
 
 # 5) 用同样方式挂看板
-dsh plugin --profile superagent add "link:$PWD\packages\dsh-superagent-board"
+dsh plugin --profile superagent add "link:$PWD\packages\dsh-windows-superagent-board"
 
 # 6) 启动并检查
-node packages\dsh-superagent\scripts\dsh-superagent.mjs status --profile superagent   # 0 正常 / 1 挂了 / 2 部分失败 / 3 等待初始化
-node packages\dsh-superagent\scripts\dsh-superagent.mjs start  --profile superagent
+node packages\dsh-windows-superagent\scripts\dsh-windows-superagent.mjs status --profile superagent   # 0 正常 / 1 挂了 / 2 部分失败 / 3 等待初始化
+node packages\dsh-windows-superagent\scripts\dsh-windows-superagent.mjs start  --profile superagent
 ```
 
-包内的 `packages/dsh-superagent/cordis.patch.yml`（bundle 层）负责插入插件行；它默认启用 GitHub 源，而飞书 / 本地会话 / 微信源是 **disabled** 的——用哪个就在你的 profile 里启用哪个。
+包内的 `packages/dsh-windows-superagent/cordis.patch.yml`（bundle 层）负责插入插件行；它默认启用 GitHub 源，而飞书 / 本地会话 / 微信源是 **disabled** 的——用哪个就在你的 profile 里启用哪个。
 
 ### 看板单独挂载
 
 ```powershell
-dsh plugin --profile superagent add "link:$PWD\packages\dsh-superagent-board"
+dsh plugin --profile superagent add "link:$PWD\packages\dsh-windows-superagent-board"
 ```
 
-它会插入 `- id: superagent-board / name: 'dsh-superagent-board'` 并链接该包。之后侧栏出现 **Superagent** 入口，面板地址为 `/superagent-board/`；可用 `DSH_SUPERAGENT_BOARD_PORT` 固定端口。
+它会插入 `- id: superagent-board / name: 'dsh-windows-superagent-board'` 并链接该包。之后侧栏出现 **Superagent** 入口，面板地址为 `/superagent-board/`；可用 `DSH_SUPERAGENT_BOARD_PORT` 固定端口。
 
 ### 微信通道（iLink Bot）——怎么连接（快捷扫码）
 
@@ -201,7 +201,7 @@ dsh plugin --profile superagent add "link:$PWD\packages\dsh-superagent-board"
 
 **连接步骤（扫码绑定，真实机制）**
 
-1. 在 profile 的 `cordis.patch.yml` 里启用 `dsh-superagent-weixin`，**重启 `dsh-superagent`**。
+1. 在 profile 的 `cordis.patch.yml` 里启用 `dsh-windows-superagent-weixin`，**重启 `dsh-windows-superagent`**。
 2. 首次启动时该源会向 iLink 索取**登录二维码**，写在 `<stateDir>/weixin-qrcode.png`（旁边附一个 `.txt` 链接文本）；`weixin` 健康项会指出这两个文件路径。二维码**数分钟即失效**，插件最多自动刷新 3 次。
 3. 用**微信 8.0.69+** 扫该图并在手机上确认登录；登录态保存到 `<stateDir>/weixin-bot.json`（即 **Login credentials file** 字段，可改），bot 会出现在你的微信会话列表里（可重命名/置顶）。
 4. **验证**：用那个微信号给 bot **发一句话**——`weixin` / `weixin-poll` 健康项从“等待扫码”转为“已保存登录”，回复出现在同一聊天里，即通道已通。
@@ -221,20 +221,20 @@ dsh plugin --profile superagent add "link:$PWD\packages\dsh-superagent-board"
 1. **不需要工单即可对话** —— 解决：用户在微信里随口一问就该有回应，不必先建工单。实现：消息作为 Trigger 进 `src/core/intake.ts`（返回 `'stored' / 'duplicate' / 'filtered'`）→ Eval 出候选 → 主会话用 `orchestrator_reply`（`src/app/tools/main.ts`）直接回复，**不经 accept 建工单**；需要建档时再用 `attach` 把消息挂到工单线程（订阅），后续回复走该线程。
 2. **图片双向** —— 解决：微信里发图/收图要能用。实现：**收** 入站图片走 `src/sources/weixin-media.ts`（AES-128-ECB 解密、按内容哈希落 `<stateDir>/weixin-media/`），消息带 `[Image: …]` 引用，评估模型把落盘图当附件直接读；**发** `orchestrator_reply` 的 `attachments` 最多 **4 张**，`mime` 支持 `image/png`、`image/jpeg`、`image/webp`、`image/gif`（`src/app/tools/main.ts:246-248`），单图受 **Image size limit**（默认 10 MiB）约束，上传分 prepare/upload/send 三段并分别记 `weixin-upload`、`weixin-send`。
 3. **推送窗口与额度管理** —— 解决：iLink 主动推送有时限和额度，发出去不等于发到了。实现：`src/app/outbox.ts` 入队并原子记账（同一条消息 id 只入队一次），失败按 `[5s, 300s]` 退避重试；同一工单/会话的前一条未发完时后续排队（超过 `FAILURES_BEFORE_ERROR` 才显式报错）；窗口关闭时积压，**用户再发一句后自动补发**（实测约 10 条/2.5 分钟）；目标会话已不存在时 settle 为 dropped。
-4. **长消息处理** —— 解决：微信单条文本有上限，长回复会被截断。实现：`src/sources/weixin-bot.ts` 的 `chunkText(text, limit=4000)`（`TEXT_CHUNK = 4000`，对齐 CowAgent 的 Weixin 通道），优先在段落/换行处切分后**分条发送**；同时在 `skills/dsh-superagent-weixin/SKILL.md` 约束回复形态（3–6 条短分点）。
+4. **长消息处理** —— 解决：微信单条文本有上限，长回复会被截断。实现：`src/sources/weixin-bot.ts` 的 `chunkText(text, limit=4000)`（`TEXT_CHUNK = 4000`，对齐 CowAgent 的 Weixin 通道），优先在段落/换行处切分后**分条发送**；同时在 `skills/dsh-windows-superagent-weixin/SKILL.md` 约束回复形态（3–6 条短分点）。
 5. **扫码登录** —— 解决：不想为通道再申请 app id/secret。实现：`src/sources/weixin-qr.ts` 把登录二维码渲染成 PNG（+ link 文本）写到 `<stateDir>`；`weixin-bot.ts` 的登录状态机把登录态存 `<stateDir>/weixin-bot.json`；token 过期（`ret/errcode -14`，`weixin-api.ts` 的 `isAuthError`）时旧文件挪成 `*.expired-<时间>` 并受控重新登录。
 6. **wxid 白名单** —— 解决：只响应被授权的人。实现：Policy 的 `sources.weixin.allowed`（`src/policy.ts` 的 `allowedSender`/准入判断；`src/app/tools/main.ts` 里读写该名单）；不在名单的来消息默认不接纳。
 7. **长轮询与健康项** —— 解决：微信没有 webhook 只能长轮询，且要能看出“通没通”。实现：`src/sources/weixin-api.ts` 长轮询（超时留 35s 余量）；`weixin-bot.ts` 上报五个健康项 `weixin`（登录）/`weixin-poll`/`weixin-send`/`weixin-upload`/`weixin-media`；实测一次 failed poll 约 90 秒后自愈为 ready，宿主保留自己的游标不丢消息。
 8. **幂等去重** —— 解决：平台重投或重复送达时不能重复应答。实现：`src/core/intake.ts` 以 **trigger id** 判重（已存在即返回 `'duplicate'`，只有 `'stored'` 才触发评估）；`src/app/outbox.ts` 对**消息 id** 去重（`store.receipts.add` 失败则不入队）。
-9. **中文/格式适配** —— 解决：微信不渲染 Markdown，表格/加粗/代码块都会退化成符号。实现：回复语言按来源（中文场景用中文）；`skills/dsh-superagent-weixin/SKILL.md` 明确要求不用 Markdown/表格/加粗/代码块，改用短分点与「回 1 / 回 2」选项——这是**提示词层**约束（代码中没有 Markdown→富文本转换器）。
+9. **中文/格式适配** —— 解决：微信不渲染 Markdown，表格/加粗/代码块都会退化成符号。实现：回复语言按来源（中文场景用中文）；`skills/dsh-windows-superagent-weixin/SKILL.md` 明确要求不用 Markdown/表格/加粗/代码块，改用短分点与「回 1 / 回 2」选项——这是**提示词层**约束（代码中没有 Markdown→富文本转换器）。
 
 ### 验证安装成功
 
 ```powershell
-node packages\dsh-superagent\scripts\dsh-superagent.mjs status --profile superagent   # 期望 0
+node packages\dsh-windows-superagent\scripts\dsh-windows-superagent.mjs status --profile superagent   # 期望 0
 ```
 
-- 一次性**面板 URL**（带 token）打印在 `<stateDir>\.artifacts\dsh-superagent-superagent-*.log`。
+- 一次性**面板 URL**（带 token）打印在 `<stateDir>\.artifacts\dsh-windows-superagent-superagent-*.log`。
 - DSH 侧栏出现 **Superagent** 入口与**看板** tab；看板页面在 `/superagent-board/`。
 - 编排器健康视图会报告各 Source（`github`、`feishu`、`local`、`weixin`、`weixin-poll`、`weixin-send`）。
 
@@ -265,19 +265,19 @@ node packages\dsh-superagent\scripts\dsh-superagent.mjs status --profile superag
 
 编排器可搭配**任意 DSH 技能库**使用——它不自带、也不要求某套特定技能；把你的 DSH profile 指向你已经在用的技能即可。
 
-例外是内置的 **`dsh-superagent-grill`**（随包分发、每个会话注册）：一轮 grill 访谈的提问协议——问题树、前沿轮次、推荐项第一、自由输入兜底、事实自查不问人；只在主控会话里配合 `ask_user_question` 用。
+例外是内置的 **`dsh-windows-superagent-grill`**（随包分发、每个会话注册）：一轮 grill 访谈的提问协议——问题树、前沿轮次、推荐项第一、自由输入兜底、事实自查不问人；只在主控会话里配合 `ask_user_question` 用。
 
 ## 开发
 
 ```powershell
-pnpm --filter dsh-superagent check
-pnpm --filter dsh-superagent-board typecheck
-pnpm --filter dsh-superagent-board test
-pnpm --filter dsh-superagent-board smoke
+pnpm --filter dsh-windows-superagent check
+pnpm --filter dsh-windows-superagent-board typecheck
+pnpm --filter dsh-windows-superagent-board test
+pnpm --filter dsh-windows-superagent-board smoke
 ```
 
 部分上游测试在 Windows 上受环境限制（symlink、`chmod`、基于 tmux 的 service-script spec）而按构造失败——见
-[`packages/dsh-superagent/WINDOWS-ADAPT.md`](packages/dsh-superagent/WINDOWS-ADAPT.md)。
+[`packages/dsh-windows-superagent/WINDOWS-ADAPT.md`](packages/dsh-windows-superagent/WINDOWS-ADAPT.md)。
 
 ## 免责与许可
 

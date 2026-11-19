@@ -1,8 +1,8 @@
 # Concepts: how one message becomes one pull request
 
 This is the short version. The normative description lives in the orchestrator's own docs —
-start with [`packages/dsh-superagent/docs/002-authorization.md`](../packages/dsh-superagent/docs/002-authorization.md)
-(authorization) and [`packages/dsh-superagent/docs/007-architecture.md`](../packages/dsh-superagent/docs/007-architecture.md)
+start with [`packages/dsh-windows-superagent/docs/002-authorization.md`](../packages/dsh-windows-superagent/docs/002-authorization.md)
+(authorization) and [`packages/dsh-windows-superagent/docs/007-architecture.md`](../packages/dsh-windows-superagent/docs/007-architecture.md)
 (the Engine and its five parts).
 
 ```
@@ -46,12 +46,12 @@ reported `ready`), plus `stopped` and `merged`/`closed`.
 
 | Topic | Document |
 | --- | --- |
-| Philosophy: as little attention as possible | [`packages/dsh-superagent/docs/000-philosophy.md`](../packages/dsh-superagent/docs/000-philosophy.md) |
-| Domain model: Trigger, Ticket, Thread, Mandate | [`packages/dsh-superagent/docs/001-domain.md`](../packages/dsh-superagent/docs/001-domain.md) |
-| Authorization: Eval, admission, accept modes, rules | [`packages/dsh-superagent/docs/002-authorization.md`](../packages/dsh-superagent/docs/002-authorization.md) |
-| Execution: Executor, teammates, recovery, delivery | [`packages/dsh-superagent/docs/003-execution.md`](../packages/dsh-superagent/docs/003-execution.md) |
-| Prompts: what the main Session and workers are told | [`packages/dsh-superagent/docs/004-prompts.md`](../packages/dsh-superagent/docs/004-prompts.md) |
-| Panel: the web board | [`packages/dsh-superagent/docs/005-panel.md`](../packages/dsh-superagent/docs/005-panel.md) |
-| Deployment: manual setup, configuration, upgrades | [`packages/dsh-superagent/docs/006-deployment.md`](../packages/dsh-superagent/docs/006-deployment.md) |
-| Architecture: the Engine, command by command | [`packages/dsh-superagent/docs/007-architecture.md`](../packages/dsh-superagent/docs/007-architecture.md) |
-| Cookbook: adding a Source | [`packages/dsh-superagent/docs/008-cookbook.md`](../packages/dsh-superagent/docs/008-cookbook.md) |
+| Philosophy: as little attention as possible | [`packages/dsh-windows-superagent/docs/000-philosophy.md`](../packages/dsh-windows-superagent/docs/000-philosophy.md) |
+| Domain model: Trigger, Ticket, Thread, Mandate | [`packages/dsh-windows-superagent/docs/001-domain.md`](../packages/dsh-windows-superagent/docs/001-domain.md) |
+| Authorization: Eval, admission, accept modes, rules | [`packages/dsh-windows-superagent/docs/002-authorization.md`](../packages/dsh-windows-superagent/docs/002-authorization.md) |
+| Execution: Executor, teammates, recovery, delivery | [`packages/dsh-windows-superagent/docs/003-execution.md`](../packages/dsh-windows-superagent/docs/003-execution.md) |
+| Prompts: what the main Session and workers are told | [`packages/dsh-windows-superagent/docs/004-prompts.md`](../packages/dsh-windows-superagent/docs/004-prompts.md) |
+| Panel: the web board | [`packages/dsh-windows-superagent/docs/005-panel.md`](../packages/dsh-windows-superagent/docs/005-panel.md) |
+| Deployment: manual setup, configuration, upgrades | [`packages/dsh-windows-superagent/docs/006-deployment.md`](../packages/dsh-windows-superagent/docs/006-deployment.md) |
+| Architecture: the Engine, command by command | [`packages/dsh-windows-superagent/docs/007-architecture.md`](../packages/dsh-windows-superagent/docs/007-architecture.md) |
+| Cookbook: adding a Source | [`packages/dsh-windows-superagent/docs/008-cookbook.md`](../packages/dsh-windows-superagent/docs/008-cookbook.md) |

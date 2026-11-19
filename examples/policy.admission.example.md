@@ -3,7 +3,7 @@
 > Illustrative, sanitized example. Real policy lives in the orchestrator's Policy
 > version (`src/policy.ts` + the Settings schemas) and is edited from the DSH
 > settings UI / the Source cards. See
-> [`packages/dsh-superagent/docs/002-authorization.md`](../../packages/dsh-superagent/docs/002-authorization.md)
+> [`packages/dsh-windows-superagent/docs/002-authorization.md`](../../packages/dsh-windows-superagent/docs/002-authorization.md)
 > for the normative description.
 
 ## 1. Accept mode

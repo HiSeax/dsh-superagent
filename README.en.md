@@ -1,4 +1,4 @@
-# dsh-superagent (release snapshot)
+# dsh-windows-superagent (release snapshot)
 
 > **Research prototype for reference only — not an official DeepSeek product.** This
 > code grew out of day-to-day development work, with much of the engineering done by
@@ -10,7 +10,7 @@
 >
 > 中文文档：**[README.md](README.md)**
 
-`dsh-superagent` is a **proactive coding agent for one GitHub repository**, packaged as
+`dsh-windows-superagent` is a **proactive coding agent for one GitHub repository**, packaged as
 a bundle for [DeepSeek Harness](https://www.deepseek.com/en/harness/) **0.2+**. It listens
 to GitHub and, optionally, Feishu, a local DSH Session, or a personal WeChat account
 through its iLink bot. When someone allowed asks the agent for work, it opens a work item
@@ -35,8 +35,8 @@ repository.
 
 **What this repository is.** Two **third-party plugins that run on top of DSH**:
 
-- `packages/dsh-superagent` — the orchestration plugin;
-- `packages/dsh-superagent-board` — the board panel plugin.
+- `packages/dsh-windows-superagent` — the orchestration plugin;
+- `packages/dsh-windows-superagent-board` — the board panel plugin.
 
 It is **not a fork of DSH and does not replace DSH**. Without a DSH host it does not run.
 
@@ -49,7 +49,7 @@ It is **not a fork of DSH and does not replace DSH**. Without a DSH host it does
 | Profile & `cordis.patch.yml` patch mechanism, profile `node_modules` resolution | Channel adapters: GitHub, Feishu, local DSH Session, WeChat (iLink bot) |
 | Agent presets / persona plugin, `tools.restrict` guard | The worker preset the Executors run under, and the team prompt sections |
 | Settings UI, MCP client | The **Policy**: admission table, accept modes (`off`/`observe`/`auto`), proactive rules, Mandates |
-| MCP client (mount your own MCP servers) | Service scripts: `scripts/dsh-superagent.mjs`, `scripts/install-windows.ps1` |
+| MCP client (mount your own MCP servers) | Service scripts: `scripts/dsh-windows-superagent.mjs`, `scripts/install-windows.ps1` |
 
 **Version compatibility (measured on this machine).** Tested against **DSH
 `0.2.2-rc.3`**. `scripts/install-windows.ps1` refuses a `dsh` older than **0.2** (0.1.x has
@@ -62,8 +62,8 @@ no `--profile`). A DSH upgrade can break:
 - the bundle's client `inject` list if the host renames those client packages;
 - the worker preset if the preset/persona plugin ids change.
 
-After upgrading DSH, re-run `pnpm --filter dsh-superagent-board smoke` and
-`pnpm --filter dsh-superagent check`.
+After upgrading DSH, re-run `pnpm --filter dsh-windows-superagent-board smoke` and
+`pnpm --filter dsh-windows-superagent check`.
 
 **Dependency boundary.** This repository **does not modify any official DSH file**. It
 attaches only through:
@@ -123,7 +123,7 @@ never receive the tool: only the main Session asks a person.*
 ## What's in this repository
 
 ```
-dsh-superagent-release/
+dsh-windows-superagent-release/
 ├── README.md / README.en.md         bilingual overview (this file)
 ├── LICENSE                          MIT, shared by both packages
 ├── SETUP.md                         deployment walkthrough (start here)
@@ -136,12 +136,12 @@ dsh-superagent-release/
 │   └── walkthrough.md                              one message → one ticket → one PR
 ├── tools/capture-demo-screenshots.mjs              reproduces docs/screenshots/*
 └── packages/
-    ├── dsh-superagent/              the orchestrator plugin (Sources, Engine, Policy,
+    ├── dsh-windows-superagent/              the orchestrator plugin (Sources, Engine, Policy,
     │                                prompts, executor, channels, docs 000–008, tests)
-    └── dsh-superagent-board/        the read-only board panel (DSH 0.2.x client plugin)
+    └── dsh-windows-superagent-board/        the read-only board panel (DSH 0.2.x client plugin)
 ```
 
-The two packages are independent DSH plugins. `dsh-superagent-board` does not fork or
+The two packages are independent DSH plugins. `dsh-windows-superagent-board` does not fork or
 replace `dsh-better-sidebar`; it registers its own sidebar entry and main panel.
 
 ## Architecture: how it works
@@ -154,7 +154,7 @@ receipt; right: the team board. Demo instance with **fabricated** data (sessions
 
 A message travels through five stages; see
 [`docs/concepts.md`](docs/concepts.md) and
-[`packages/dsh-superagent/docs/`](packages/dsh-superagent/docs/002-authorization.md).
+[`packages/dsh-windows-superagent/docs/`](packages/dsh-windows-superagent/docs/002-authorization.md).
 2. **Eval (the gate).** The gate checks the sender and the Source's **Policy**: a listed
    person addressing the agent is an **explicit request**; other messages go through the
    **admission table** and the **accept mode** (`off` / `observe` *(default)* / `auto`).
@@ -168,13 +168,13 @@ A message travels through five stages; see
    **result**, or an **attention** message — each only by the rule that allows it.
 
 See [`docs/concepts.md`](docs/concepts.md) and
-[`packages/dsh-superagent/docs/`](packages/dsh-superagent/docs/002-authorization.md).
+[`packages/dsh-windows-superagent/docs/`](packages/dsh-windows-superagent/docs/002-authorization.md).
 
 ## How this differs from the official baseline
 
 The honest baselines are (a) **DSH 0.2 base** — the host, which has no proactive
 orchestration — and (b) **the upstream research prototype**
-([`vHao11/dsh-superagent@windows-adapt`](https://github.com/vHao11/dsh-superagent/tree/windows-adapt)),
+([`vHao11/dsh-windows-superagent@windows-adapt`](https://github.com/vHao11/dsh-windows-superagent/tree/windows-adapt)),
 Unix-only in practice. What this release adds:
 
 | Area | Baseline | This release |
@@ -216,11 +216,11 @@ Prerequisites: **DSH 0.2+** (tested on `0.2.2-rc.3`) with the `dsh` CLI, **Node.
 
 ```powershell
 # 1) clone and build
-git clone https://github.com/HiSeax/dsh-superagent.git dsh-superagent-release
-cd dsh-superagent-release
+git clone https://github.com/HiSeax/dsh-windows-superagent.git dsh-windows-superagent-release
+cd dsh-windows-superagent-release
 pnpm install
-pnpm --filter dsh-superagent check                    # typecheck + vitest + build
-pnpm --filter dsh-superagent-board build
+pnpm --filter dsh-windows-superagent check                    # typecheck + vitest + build
+pnpm --filter dsh-windows-superagent-board build
 
 # 2) create a dedicated profile
 $dsh = "C:\Users\<you>\AppData\Local\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd"
@@ -228,31 +228,31 @@ $dsh = "C:\Users\<you>\AppData\Local\Programs\DeepSeek Harness\resources\runtime
 
 # 3) mount the orchestrator plugin into that profile
 #    (this creates the node_modules junction and inserts the plugin rows)
-dsh plugin --profile superagent add "link:$PWD\packages\dsh-superagent"
+dsh plugin --profile superagent add "link:$PWD\packages\dsh-windows-superagent"
 
 # 4) set stateDir (absolute Windows path) in
 #    <DSH_HOME>\profiles\superagent\cordis.patch.yml   →   config.stateDir
 #    sanitized example: examples/profiles/desktop/cordis.patch.example.yml
 
 # 5) mount the board panel the same way
-dsh plugin --profile superagent add "link:$PWD\packages\dsh-superagent-board"
+dsh plugin --profile superagent add "link:$PWD\packages\dsh-windows-superagent-board"
 
 # 6) start, then check
-node packages\dsh-superagent\scripts\dsh-superagent.mjs status --profile superagent   # 0 healthy / 1 down / 2 part failed / 3 waiting for setup
-node packages\dsh-superagent\scripts\dsh-superagent.mjs start  --profile superagent
+node packages\dsh-windows-superagent\scripts\dsh-windows-superagent.mjs status --profile superagent   # 0 healthy / 1 down / 2 part failed / 3 waiting for setup
+node packages\dsh-windows-superagent\scripts\dsh-windows-superagent.mjs start  --profile superagent
 ```
 
-`packages/dsh-superagent/cordis.patch.yml` (the bundle layer) is what inserts the plugin
+`packages/dsh-windows-superagent/cordis.patch.yml` (the bundle layer) is what inserts the plugin
 rows; it also ships the GitHub Source enabled and the Feishu / local-Session / Weixin
 Sources **disabled** — enable the ones you use in your profile.
 
 ### The board panel on its own
 
 ```powershell
-dsh plugin --profile superagent add "link:$PWD\packages\dsh-superagent-board"
+dsh plugin --profile superagent add "link:$PWD\packages\dsh-windows-superagent-board"
 ```
 
-That inserts `- id: superagent-board / name: 'dsh-superagent-board'` and links the
+That inserts `- id: superagent-board / name: 'dsh-windows-superagent-board'` and links the
 package. The sidebar then shows a **Superagent** entry; the panel is served at
 `/superagent-board/`. Optionally pin its port with `DSH_SUPERAGENT_BOARD_PORT`.
 
@@ -265,8 +265,8 @@ credentials locally.
 
 **Connection steps (QR binding, real mechanism)**
 
-1. Enable the `dsh-superagent-weixin` entry in the profile's `cordis.patch.yml` and
-   **restart `dsh-superagent`**.
+1. Enable the `dsh-windows-superagent-weixin` entry in the profile's `cordis.patch.yml` and
+   **restart `dsh-windows-superagent`**.
 2. On first start the Source asks iLink for a **login QR code** and writes it to
    `<stateDir>/weixin-qrcode.png` (with a `.txt` link file beside it); the `weixin` health
    entry names both paths. The QR **expires after a couple of minutes** and is refreshed at
@@ -304,21 +304,21 @@ Implementation-level, one line per item: **the problem** and **where it lives**.
 1. **Talk without opening a ticket** — Problem: a throwaway question in chat should get an answer, not a work item. Implementation: the message enters as a Trigger in `src/core/intake.ts` (`'stored' | 'duplicate' | 'filtered'`), Eval produces a candidate, and the main Session answers with `orchestrator_reply` (`src/app/tools/main.ts`) **without accepting a Ticket**; when a record is wanted, `attach` routes it into a ticket thread (subscription) and later replies follow that thread.
 2. **Images both ways** — Problem: send/receive pictures in chat. Implementation: **inbound** goes through `src/sources/weixin-media.ts` (AES-128-ECB decrypt, stored under `<stateDir>/weixin-media/` by content hash) with an `[Image: …]` reference, and the assessing model reads the stored file as an attachment; **outbound** `orchestrator_reply` takes up to **4** `attachments` with a `mime` hint for `image/png`, `image/jpeg`, `image/webp`, `image/gif` (`src/app/tools/main.ts:246-248`), bounded by **Image size limit** (10 MiB default), with prepare / upload / send stages behind `weixin-upload` and `weixin-send`.
 3. **Push window and quota** — Problem: iLink pushes are both time- and quota-limited. Implementation: `src/app/outbox.ts` enqueues each reply and records the receipt atomically (a message id enqueues once), retries with `[5s, 300s]` backoff, queues later messages behind an unresolved earlier one (reporting after `FAILURES_BEFORE_ERROR`), accumulates while the window is shut and **flushes when the person writes again** (measured ~10 replies / 2.5 min); settles as dropped only when the conversation is gone.
-4. **Long messages** — Problem: the protocol caps a single text. Implementation: `chunkText(text, limit=4000)` in `src/sources/weixin-bot.ts` (`TEXT_CHUNK = 4000`, aligned with CowAgent's Weixin channel) splits at paragraph/line boundaries and sends the pieces; `skills/dsh-superagent-weixin/SKILL.md` additionally constrains replies to 3–6 short bullets.
+4. **Long messages** — Problem: the protocol caps a single text. Implementation: `chunkText(text, limit=4000)` in `src/sources/weixin-bot.ts` (`TEXT_CHUNK = 4000`, aligned with CowAgent's Weixin channel) splits at paragraph/line boundaries and sends the pieces; `skills/dsh-windows-superagent-weixin/SKILL.md` additionally constrains replies to 3–6 short bullets.
 5. **QR login** — Problem: no app id/secret should be required. Implementation: `src/sources/weixin-qr.ts` renders the login QR as a PNG (+ link text) under `<stateDir>`; `weixin-bot.ts` keeps the login state machine and saves `<stateDir>/weixin-bot.json`; a stale token (`ret/errcode -14`, `isAuthError` in `weixin-api.ts`) moves the old file aside as `*.expired-<time>` and re-logs in under control.
 6. **wxid allowlist** — Problem: only authorised people are answered. Implementation: the Policy's `sources.weixin.allowed` (`allowedSender` / admission in `src/policy.ts`; read and written by `src/app/tools/main.ts`); messages from anyone else are not admitted by default.
 7. **Long poll and health entries** — Problem: there is no webhook, only long polling, so you need to see whether it is alive. Implementation: long poll in `src/sources/weixin-api.ts` (35 s margin over the server hold); `weixin-bot.ts` reports five health entries — `weixin` (login), `weixin-poll`, `weixin-send`, `weixin-upload`, `weixin-media`; measured, a failed poll recovers to ready in about 90 s, and the host keeps its own cursor so nothing is lost.
 8. **Idempotent dedupe** — Problem: re-delivery must not produce duplicate answers. Implementation: `src/core/intake.ts` dedupes by **trigger id** (returns `'duplicate'` when present; only `'stored'` triggers an Eval); `src/app/outbox.ts` dedupes by **message id** (`store.receipts.add` failing means it is not enqueued).
-9. **Chinese / formatting** — Problem: WeChat does not render Markdown; tables, bold and code blocks degrade into symbols. Implementation: replies follow the source language (Chinese in Chinese chats); `skills/dsh-superagent-weixin/SKILL.md` requires short bullets and `1 / 2`-style choices instead of Markdown — a **prompt-level** constraint; there is no Markdown→rich-text converter in the code.
+9. **Chinese / formatting** — Problem: WeChat does not render Markdown; tables, bold and code blocks degrade into symbols. Implementation: replies follow the source language (Chinese in Chinese chats); `skills/dsh-windows-superagent-weixin/SKILL.md` requires short bullets and `1 / 2`-style choices instead of Markdown — a **prompt-level** constraint; there is no Markdown→rich-text converter in the code.
 
 ### Verify the install
 
 ```powershell
-node packages\dsh-superagent\scripts\dsh-superagent.mjs status --profile superagent   # expect 0
+node packages\dsh-windows-superagent\scripts\dsh-windows-superagent.mjs status --profile superagent   # expect 0
 ```
 
 - The one-time **panel URL** (with token) is printed to
-  `<stateDir>\.artifacts\dsh-superagent-superagent-*.log`.
+  `<stateDir>\.artifacts\dsh-windows-superagent-superagent-*.log`.
 - The DSH sidebar shows the **Superagent** entry and the **board** tab; the board page is
   at `/superagent-board/`.
 - The orchestrator's health view reports its Sources (`github`, `feishu`, `local`,
@@ -350,7 +350,7 @@ node packages\dsh-superagent\scripts\dsh-superagent.mjs status --profile superag
 The orchestrator works with **any DSH skill library** — it neither ships nor requires a
 particular set of skills; point your DSH profile at whichever skills you already use.
 
-The one exception is the bundled **`dsh-superagent-grill`** (shipped with the package and
+The one exception is the bundled **`dsh-windows-superagent-grill`** (shipped with the package and
 registered in every session): the asking protocol of a grill interview — a question
 tree, frontier rounds, the recommended option first, the free-input fallback kept open,
 and facts looked up rather than asked. It pairs with `ask_user_question` in the main
@@ -359,15 +359,15 @@ Session only.
 ## Development
 
 ```powershell
-pnpm --filter dsh-superagent check
-pnpm --filter dsh-superagent-board typecheck
-pnpm --filter dsh-superagent-board test
-pnpm --filter dsh-superagent-board smoke
+pnpm --filter dsh-windows-superagent check
+pnpm --filter dsh-windows-superagent-board typecheck
+pnpm --filter dsh-windows-superagent-board test
+pnpm --filter dsh-windows-superagent-board smoke
 ```
 
 Some upstream tests are environment-bound on Windows (symlinks, `chmod`, the tmux-based
 service-script spec) and fail there by construction — see
-[`packages/dsh-superagent/WINDOWS-ADAPT.md`](packages/dsh-superagent/WINDOWS-ADAPT.md).
+[`packages/dsh-windows-superagent/WINDOWS-ADAPT.md`](packages/dsh-windows-superagent/WINDOWS-ADAPT.md).
 
 ## Disclaimer and license
 

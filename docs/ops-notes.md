@@ -14,7 +14,7 @@ round; both are recorded here so the next person does not repeat it.
 `paused / setupPending` and the deployment check reports
 `agentCliSignedOut — The agent GitHub CLI cannot read its account` with output like
 `spawn <stateDir>\worker-bin\gh ENOENT`. Because orchestration never becomes ready, the
-main Session is never created, so the sidebar has no `dsh-superagent orchestrator` entry.
+main Session is never created, so the sidebar has no `dsh-windows-superagent orchestrator` entry.
 
 **Cause / 原因**：the settings snapshot inside the copied database still names the
 **worker CLI shim** the *original* deployment wrote into its own `stateDir`
@@ -36,8 +36,8 @@ Either way the check passes and the main Session is created.
 returns the **other** deployment's data (real tickets/members instead of the copy's), or the
 orchestrator logs that its board server did not start.
 
-**Cause / 原因**：both the orchestrator (`packages/dsh-superagent`, default `8916`) and the
-board panel plugin (`packages/dsh-superagent-board`, default `8917`) read the same
+**Cause / 原因**：both the orchestrator (`packages/dsh-windows-superagent`, default `8916`) and the
+board panel plugin (`packages/dsh-windows-superagent-board`, default `8917`) read the same
 `DSH_SUPERAGENT_BOARD_PORT` override. Setting it for one instance sets it for both, so one of
 them loses the bind (`EADDRINUSE`) while the other serves the port — and the panel, whose
 upstream origin defaults to `http://127.0.0.1:8916`, may proxy the *other* deployment's API.

@@ -1,0 +1,32 @@
+{
+  "name": "dsh-windows-superagent-board",
+  "version": "0.2.4",
+  "description": "Read-only superagent board page for the DSH sidebar (skeleton).",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": []
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/build-client.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "smoke": "node tests/ui.smoke.mjs",
+    "smoke:workers": "node tests/temp-workers.smoke.mjs"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3",
+    "vitest": "4.1.8"
+  },
+  "author": "dsh-windows-superagent maintainers <dsh-windows-superagent@localhost>",
+  "license": "MIT",
+  "private": true
+}

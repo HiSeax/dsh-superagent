@@ -8,7 +8,7 @@ A sanitized, fabricated end-to-end example. Names, tickets and repos are made up
 | --- | --- |
 | Operator (human, on the list) | `dana` |
 | Teammate (human, not on the list) | `sam` |
-| Orchestrator main Session | `dsh-superagent` |
+| Orchestrator main Session | `dsh-windows-superagent` |
 | Executor Session for the ticket | `worker-tkt-4f2a` |
 | Channel | GitHub (repo `acme/widgets`) |
 

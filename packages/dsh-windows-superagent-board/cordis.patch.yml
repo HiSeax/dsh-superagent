@@ -1,0 +1,6 @@
+# Example only: this row is what a local desktop profile needs to mount the package.
+# Install it with `dsh plugin --profile desktop add C:\Projects\superagent-board`, or add the
+# dependency and the row by hand as README.md describes. This file is not applied by itself.
+- insert:
+    - id: superagent-board
+      name: 'dsh-windows-superagent-board'
