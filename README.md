@@ -58,6 +58,8 @@ node packages\dsh-windows-superagent\scripts\dsh-windows-superagent.mjs status -
 node packages\dsh-windows-superagent\scripts\dsh-windows-superagent.mjs start  --profile superagent
 ```
 
+> 0.2.6 的 board 包未声明 `dsh.bundle`：上面的 `dsh plugin add`（insert 行挂载）即可用；把它直接写进 `dsh.profile.bundles` 需要 0.2.6 之后的修复（已在 main，见 [docs/ops-notes.md](docs/ops-notes.md) §3）。
+
 更多：**[SETUP.md](SETUP.md)** · 挂载示例 [`examples/profiles/desktop/cordis.patch.example.yml`](examples/profiles/desktop/cordis.patch.example.yml) · 端到端演示 [`examples/walkthrough.md`](examples/walkthrough.md)
 
 ## 0.2.6 有什么新东西
