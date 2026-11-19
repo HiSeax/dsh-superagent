@@ -29,7 +29,8 @@ const presetOf = (rows: readonly Row[], id: string) => rows.map(row => row.confi
 it('defines the worker preset Executor Sessions run under, with a shell that moves long commands to the background', async () => {
   const rows = await patched()
   expect(rows.map(row => row.id)).toEqual(['dsh-windows-superagent', 'dsh-windows-superagent-github', 'dsh-windows-superagent-feishu', 'dsh-windows-superagent-local',
-    'dsh-windows-superagent-weixin', 'dsh-windows-superagent-worker-preset', 'dsh-windows-superagent-router-preset'])
+    'dsh-windows-superagent-weixin', 'dsh-windows-superagent-worker-preset', 'dsh-windows-superagent-router-preset',
+    'dsh-superagent-worker-preset', 'dsh-superagent-router-preset'])
   const preset = presetOf(rows, WORKER_PRESET)
   expect(preset.id).toBe(WORKER_PRESET)
   const plugins = flat(preset.plugins)
@@ -72,4 +73,13 @@ it('defines the router preset the main Session runs under: the worker\'s 5-secon
     '@deepseek-ai/dsh-tool-todo', '@deepseek-ai/dsh-tool-present', '@deepseek-ai/dsh-plan-mode',
     '@deepseek-ai/dsh-plugin-manager/tools', '@deepseek-ai/dsh-plugin-market/tools', '@deepseek-ai/dsh-tool-schedule', '@deepseek-ai/dsh-tool-goal',
     '@deepseek-ai/dsh-command-goal', '@deepseek-ai/dsh-tool-workflow', '@deepseek-ai/dsh-workflow-ptc']) expect(names, name).not.toContain(name)
+})
+
+it('defines legacy presets for backward compatibility with sessions created before the rename', async () => {
+  const rows = await patched()
+  const legacyRouter = presetOf(rows, 'dsh-superagent-router'), legacyWorker = presetOf(rows, 'dsh-superagent-worker')
+  expect(legacyRouter).toBeDefined()
+  expect(legacyWorker).toBeDefined()
+  expect(legacyRouter.order).toBe(93)
+  expect(legacyWorker.order).toBe(92)
 })

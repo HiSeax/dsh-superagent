@@ -54,6 +54,8 @@ interface SessionBinding { disposers: (() => void)[]; scope?: Context; skills?: 
 
 /** The agent presets Executor Sessions and the main Session are created with, which the bundle's patch defines. */
 export const WORKER_PRESET = 'dsh-windows-superagent-worker', ROUTER_PRESET = 'dsh-windows-superagent-router'
+/** Legacy preset names used before the rename, kept for backward compatibility with existing Sessions. */
+export const LEGACY_WORKER_PRESET = 'dsh-superagent-worker', LEGACY_ROUTER_PRESET = 'dsh-superagent-router'
 declare module '@deepseek-ai/cordis' {
   interface Events {
     /** DSH's agent preset registry selected `agentPreset` for a Session. */
@@ -276,6 +278,8 @@ export class Sessions {
         const ticketId = ticketOfSession(sessionId), agent = ctx.agents.get(sessionId as SessionId)
         const ours = sessionId === this.host.masterId ? ROUTER_PRESET : ticketId && this.host.store.tickets.get(ticketId) ? WORKER_PRESET : undefined
         if (!ours || preset === ours || !agent) return
+        if (sessionId === this.host.masterId && preset === LEGACY_ROUTER_PRESET) return
+        if (ticketId && preset === LEGACY_WORKER_PRESET) return
         const presets = child.get('agentPresets') as { select(agent: Agent, preset: string): Promise<string> }
         presets.select(agent, ours).catch(() => {})
       })
@@ -540,7 +544,8 @@ export class Sessions {
       const projections = this.ctx.get('sessionProjections') as { stateOf?: (session: Agent['session'], key: string) => unknown } | undefined
       const selected = typeof presets?.presetForSession === 'function' ? presets.presetForSession(agent.session)
         : projections?.stateOf?.(agent.session, 'agentPreset')
-      return (selected ?? agent.session.header.agentPreset) === ROUTER_PRESET
+      const current = selected ?? agent.session.header.agentPreset
+      return current === ROUTER_PRESET || current === LEGACY_ROUTER_PRESET
     } catch { return false }
   }
   /**

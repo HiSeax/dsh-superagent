@@ -10,7 +10,7 @@ import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-skill'
 import type {} from '@deepseek-ai/dsh-subprocess'
-import { mkdirSync } from 'node:fs'
+import { appendFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { lockSync } from 'proper-lockfile'
 import { Engine, key, reasonText, latestReport, type EngineForSettings, type ReceiveResult, type Ticket, type Trigger } from '../core/index.ts'
@@ -85,6 +85,14 @@ export async function waitForStateLock(stateDir: string, { staleMs = 30_000, tim
  * Exposes the `SourceHost` service on the Cordis context for source plugins and coordinates startup, setup checks, HTTP route registration, and graceful shutdown.
  * Locks the state directory before opening SQLite so concurrent processes cannot corrupt or double-migrate state.
  */
+/** Appends one startup step to `boot.log` in the state directory, so a startup that never finishes still says where it stopped. */
+function bootTrace(stateDir: string, step: string, detail?: unknown): void {
+  try {
+    const line = `${new Date().toISOString()} ${step}${detail === undefined ? '' : ` ${detail instanceof Error ? `${detail.name}: ${detail.message}\n${detail.stack ?? ''}` : String(detail)}`}\n`
+    appendFileSync(join(stateDir, 'boot.log'), line)
+  } catch { /* tracing must never break startup */ }
+}
+
 export class Runtime extends Service implements SourceHost {
   readonly store: Store
   readonly setup: Setup
@@ -268,8 +276,10 @@ export class Runtime extends Service implements SourceHost {
   private paused(): boolean { return !this.setup.configured() || this.store.settings().paused }
   private async initialize(): Promise<void> {
     // Register management HTTP routes before setup completes so operators can fix setup problems in the UI.
+    bootTrace(this.machine.stateDir, 'initialize: http registered')
     this.disposers.push(registerHttp(this.ctx, this.httpHost()))
     await this.startup()
+    bootTrace(this.machine.stateDir, 'initialize: startup returned')
   }
   /**
    * Runs the startup sequence. A setup probe that fails — one transient network error used to park the whole orchestrator,
@@ -277,7 +287,10 @@ export class Runtime extends Service implements SourceHost {
    */
   private async startup(): Promise<void> {
     if (this.startupDone || this.closing()) return
-    if (!await this.setup.run(this.store.settings())) {
+    bootTrace(this.machine.stateDir, 'startup: setup.run begin')
+    const setupOk = await this.setup.run(this.store.settings())
+    bootTrace(this.machine.stateDir, 'startup: setup.run', setupOk)
+    if (!setupOk) {
       this.runtimeHealth.set({ ...health('paused', 'setupPending'), at: now() })
       this.scheduleSetupRetry()
       return
@@ -286,7 +299,14 @@ export class Runtime extends Service implements SourceHost {
     this.startupDone = true
     this.sessions.install()
     this.executor.install()
-    await this.sessions.ensure(this.masterId, this.machine.stateDir, 'dsh-windows-superagent orchestrator', 'orchestrator')
+    bootTrace(this.machine.stateDir, 'startup: ensure begin', this.masterId)
+    try {
+      await this.sessions.ensure(this.masterId, this.machine.stateDir, 'dsh-windows-superagent orchestrator', 'orchestrator')
+      bootTrace(this.machine.stateDir, 'startup: ensure done')
+    } catch (error) {
+      bootTrace(this.machine.stateDir, 'startup: ensure FAILED', error)
+      throw error
+    }
     for (const id of this.settings.syncable()) await this.settings.sync(id).catch(() => { /* sync() records its failure in health. */ })
     // If stop() was called while awaiting setup, session creation, or policy sync, do not start background loops.
     if (this.closing()) return
@@ -294,6 +314,7 @@ export class Runtime extends Service implements SourceHost {
     this.passes.start()
     this.effects.start()
     await this.announceBoot().catch(error => { this.ctx.logger.warn('dsh-windows-superagent could not deliver its boot self-check: %s', String(error)) })
+    bootTrace(this.machine.stateDir, 'startup: ready')
     this.runtimeHealth.set({ state: 'ready', detail: 'Orchestrator is ready', at: now() })
     this.startHeartbeat()
   }

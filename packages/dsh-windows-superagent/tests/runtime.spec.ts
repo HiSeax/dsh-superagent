@@ -1697,8 +1697,14 @@ it('selects its own preset again for a main Session or worker a person switched 
   presets.select.mockClear()
   emit(runtime.masterId, 'dsh-windows-superagent-router'); await Promise.resolve()
   expect(presets.select).not.toHaveBeenCalled()
+  // Legacy presets are also left alone for backward compatibility.
+  emit(runtime.masterId, 'dsh-superagent-router'); await Promise.resolve()
+  expect(presets.select).not.toHaveBeenCalled()
   emit(sessionId, 'standard')
   await vi.waitFor(() => expect(presets.select).toHaveBeenCalledWith(agents.get(sessionId), 'dsh-windows-superagent-worker'))
+  presets.select.mockClear()
+  emit(sessionId, 'dsh-superagent-worker'); await Promise.resolve()
+  expect(presets.select).not.toHaveBeenCalled()
   // Another Session is not one of dsh-windows-superagent's.
   presets.select.mockClear()
   emit('someone-else', 'standard'); emit('worker-nothing', 'standard'); await Promise.resolve()
